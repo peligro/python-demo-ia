@@ -28,6 +28,13 @@ TERMS_OF_SERVICE = f"{os.getenv('FRONTEND_URL')}"
 OPENAPI_TAGS = [
     {"name": "Home", "description": "Home"},
     {"name": "Health", "description": "Endpoint de salud"},
+    {"name": "State", "description": "Listar estados"},
+    {"name": "Module", "description": "Listar módulos"},
+    {"name": "Profile", "description": "Listar perfiles"},
+    {"name": "Item", "description": "Listar ítems"},
+    {"name": "User", "description": "Listar usuarios"},
+    {"name": "App Menu", "description": "Listar menús de la aplicación"},
+    {"name": "Home Menu", "description": "Listar menús del home"},
 ]
 
 # Función para generar el esquema OpenAPI personalizado

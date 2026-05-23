@@ -1,45 +1,39 @@
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
+from starlette.requests import Request
 import os
 
 class SetSecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
+    async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Rutas donde NO aplicar CSP restrictivo (Swagger UI)
-        doc_paths = ["/docs", "/documentacion", "/redoc"]
-        path = request.url.path
-
-        # 👇 Encabezados anti-caché (siempre)
-        response.headers["Cache-Control"] = "no-store"
+        # API B2: Anti-cache para respuestas sensibles
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
 
-        # 👇 Eliminar headers sensibles
-        if "server" in response.headers:
-            del response.headers["server"]
-        if "x-powered-by" in response.headers:
-            del response.headers["x-powered-by"]
+        # WEB B3: Eliminar divulgación de tecnología
+        response.headers.pop("server", None)
+        response.headers.pop("x-powered-by", None)
 
-        # 👇 Encabezados de seguridad OWASP (siempre)
+        # OWASP Secure Headers (API M1 / WEB M4)
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
-        # 👇 HSTS (solo producción)
+        # HSTS solo en producción
         if os.getenv("ENVIRONMENT") == "production":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
-        # 👇 CSP: solo en rutas NO de documentación
-        if not any(path.startswith(p) for p in doc_paths):
-            csp_policy = (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline'; "
-                "style-src 'self' 'unsafe-inline'; "
+        # CSP restrictivo para APIs, mínimo necesario para Docs
+        doc_paths = ["/docs", "/openapi.json", "/redoc"]
+        if not any(request.url.path.startswith(p) for p in doc_paths):
+            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
+        else:
+            # Swagger/Redoc necesitan cargar assets externos
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "img-src 'self' data:; "
-                "font-src 'self'; "
-                "connect-src 'self'; "
-                "frame-ancestors 'none';"
+                "font-src 'self' https://fonts.gstatic.com;"
             )
-            response.headers["Content-Security-Policy"] = csp_policy
 
         return response
