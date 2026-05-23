@@ -1,0 +1,58 @@
+from fastapi.openapi.utils import get_openapi
+from dotenv import load_dotenv
+import os
+# Cargar variables de entorno
+load_dotenv()
+
+
+# Descripción general de la API
+DESCRIPTION = f"Documentación oficial de {os.getenv('PRODUCT_NAME')}"
+
+# Información de contacto
+CONTACT_INFO = {
+    "name": f"{os.getenv('FRONTEND_URL')}",
+    "url": f"{os.getenv('FRONTEND_URL')}", 
+    "email": "yo@cesarcancino.com"
+}
+
+# Licencia
+LICENSE_INFO = {
+    "name": "Apache 2.0",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0.html" 
+}
+
+# Términos de servicio
+TERMS_OF_SERVICE = f"{os.getenv('FRONTEND_URL')}" 
+
+# Etiquetas de OpenAPI (tags)
+OPENAPI_TAGS = [
+    {"name": "Home", "description": "Home"},
+    {"name": "Health", "description": "Endpoint de salud"},
+]
+
+# Función para generar el esquema OpenAPI personalizado
+def custom_openapi(app):
+    def generate_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        openapi_schema = get_openapi(
+            title=f"{os.getenv('PRODUCT_NAME')}",
+            version="0.0.1",
+            description=DESCRIPTION,
+            routes=app.routes,
+            tags=OPENAPI_TAGS
+        )
+
+        # Añade info adicional
+        openapi_schema["info"]["termsOfService"] = TERMS_OF_SERVICE
+        openapi_schema["info"]["license"] = LICENSE_INFO
+        openapi_schema["info"]["contact"] = CONTACT_INFO
+
+        
+
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    return generate_openapi
+
