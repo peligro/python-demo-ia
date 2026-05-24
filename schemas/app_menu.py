@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional
 
+
 class AppMenuCreate(BaseModel):
     label: str = Field(..., min_length=2, max_length=200)
     title: str = Field(..., min_length=2, max_length=200)
@@ -15,13 +16,14 @@ class AppMenuCreate(BaseModel):
             "example": {
                 "label": "Usuarios",
                 "title": "Gestión de Usuarios",
-                "icon": "user-group",
+                "icon": "fa-users",
                 "order": 1,
                 "parent_id": None,
                 "module_id": 1
             }
         }
     )
+
 
 class AppMenuUpdate(BaseModel):
     label: Optional[str] = Field(None, min_length=2, max_length=200)
@@ -40,6 +42,14 @@ class AppMenuUpdate(BaseModel):
         }
     )
 
+
+class ModuleSummary(BaseModel):
+    id: int
+    name: str
+    slug: str
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AppMenuPublic(BaseModel):
     id: int
     label: str
@@ -48,19 +58,14 @@ class AppMenuPublic(BaseModel):
     order: int
     parent_id: Optional[int]
     module_id: Optional[int]
+    module_slug: Optional[str] = None  # ✅ Slug del módulo relacionado
     model_config = ConfigDict(from_attributes=True)
 
-class AppMenuRead(BaseModel):
-    id: int
-    label: str
-    title: str
-    icon: str
-    order: int
-    parent_id: Optional[int]
-    module_id: Optional[int]
+
+class AppMenuRead(AppMenuPublic):
     created_at: datetime
     updated_at: datetime
-    model_config = ConfigDict(from_attributes=True)
+
 
 class AppMenuListResponse(BaseModel):
     total: int

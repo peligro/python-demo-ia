@@ -6,7 +6,7 @@ from schemas.home_menu import HomeMenuCreate, HomeMenuUpdate, HomeMenuPublic, Ho
 from middleware.auth import get_current_user
 from typing import Optional
 
-router = APIRouter(prefix="/home-menu", tags=["HomeMenu"])
+router = APIRouter(prefix="/home-menu", tags=["Home Menu"])
 
 def get_home_menu_service(session: Session = Depends(get_session)) -> HomeMenuService:
     return HomeMenuService(session)
