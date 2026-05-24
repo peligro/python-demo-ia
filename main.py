@@ -7,75 +7,74 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from dotenv import load_dotenv
 import os
 
-# Cargar variables de entorno
 load_dotenv()
 
 # Routers
 from router.health.health_router import router as health_router
 from router.state.state_router import router as state_router
+from router.profile.profile_router import router as profile_router
+from router.module.module_router import router as module_router
+from router.item.item_router import router as item_router
+from router.user.user_router import router as user_router
 
-# Middlewares (import desde módulo)
-from middleware.disable_options import DisableOptionsMiddleware
-from middleware.security_headers import SetSecurityHeadersMiddleware
-
-# Manejadores de excepciones (import desde módulo)
-from exceptions.handlers import http_exception_handler, manejar_errores_validacion
 
 # Swagger custom
 from swagger.openapi import custom_openapi
 
-# Inicializar FastAPI
 app = FastAPI(
     title=os.getenv("PRODUCT_NAME", "API Demo"),
-    description="API segura y modular con FastAPI + SQLModel",
+    description="API modular con FastAPI + SQLModel",
     version="0.0.1",
-    docs_url=None,  # Deshabilitamos /docs default para usar el custom
+    docs_url=None,
     redoc_url=None,
     openapi_url="/openapi.json"
 )
 
 # =============================================================================
-# 1. MIDDLEWARES (Orden crítico: CORS primero para interceptar preflight)
+# CORS BÁSICO (sin configuración compleja por ahora)
 # =============================================================================
-
-# CORS - API C3: Control de origen de peticiones
-# 🔒 En producción: cambiar "*" por lista explícita desde .env
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(",") if os.getenv("ALLOWED_ORIGINS") != "*" else ["*"],
+    allow_origins=["*"],  # 🔒 Cambiar en producción
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
-# Security Headers - API M1, WEB M4, WEB B3, API B2
-app.add_middleware(SetSecurityHeadersMiddleware)
+# =============================================================================
+# EXCEPTION HANDLERS (inline, sin imports problemáticos)
+# =============================================================================
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
+        return JSONResponse(status_code=404, content={"estado": "error", "mensaje": "Ruta no encontrada"})
+    if exc.status_code == status.HTTP_405_METHOD_NOT_ALLOWED:
+        return JSONResponse(status_code=405, content={"estado": "error", "mensaje": "Método no permitido"})
+    return JSONResponse(status_code=exc.status_code, content={"estado": "error", "mensaje": str(exc.detail)})
 
-# Disable OPTIONS - API B1: Evitar divulgación de métodos HTTP
-app.add_middleware(DisableOptionsMiddleware)
+@app.exception_handler(RequestValidationError)
+async def manejar_errores_validacion(request: Request, exc: RequestValidationError):
+    errores = []
+    for error in exc.errors():
+        campo = ".".join(str(x) for x in error["loc"][1:]) if len(error["loc"]) > 1 else "desconocido"
+        mensaje = error.get("msg", "Error de validación")
+        if mensaje.startswith("Value error, "):
+            mensaje = mensaje[len("Value error, "):]
+        elif "Input should be a valid" in mensaje or "string type expected" in mensaje:
+            mensaje = f"El campo {campo} tiene un formato inválido"
+        elif mensaje == "Field required":
+            mensaje = f"El campo {campo} es obligatorio"
+        errores.append({"campo": campo, "mensaje": mensaje})
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"estado": "error", "mensaje": "Errores de validación", "errores": errores})
 
 # =============================================================================
-# 2. EXCEPTION HANDLERS (Registro único, sin decoradores duplicados)
-# =============================================================================
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)
-app.add_exception_handler(RequestValidationError, manejar_errores_validacion)
-
-# =============================================================================
-# 3. SWAGGER / DOCUMENTACIÓN (Custom + protegido en prod)
+# SWAGGER
 # =============================================================================
 app.openapi = custom_openapi(app)
 
 @app.get("/docs", include_in_schema=False)
-async def swagger_documentation(request: Request):
-    # 🔒 ARQ A2: En producción, requerir autenticación para /docs
-    if os.getenv("ENVIRONMENT") == "production":
-        # Aquí podrías agregar: Depends(verify_admin)
-        pass
-    return get_swagger_ui_html(
-        openapi_url="/openapi.json",
-        title=f"{os.getenv('PRODUCT_NAME', 'API')} - Documentación"
-    )
+async def swagger_documentation():
+    return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{os.getenv('PRODUCT_NAME', 'API')} - Documentación")
 
 @app.get("/redoc", include_in_schema=False)
 async def redoc_documentation():
@@ -83,7 +82,7 @@ async def redoc_documentation():
     return get_redoc_html(openapi_url="/openapi.json", title="ReDoc")
 
 # =============================================================================
-# 4. RUTAS PÚBLICAS
+# RUTAS
 # =============================================================================
 from schemas.schemas import IndexResponse
 
@@ -95,21 +94,14 @@ def index():
 def health_check():
     return {"status": "UP"}
 
-# =============================================================================
-# 5. INCLUSIÓN DE ROUTERS MODULARES
-# =============================================================================
-app.include_router(health_router)  # prefix="/health"
-app.include_router(state_router)    # prefix="/states"
+app.include_router(health_router)
+app.include_router(state_router)
+app.include_router(profile_router)
+app.include_router(module_router)
+app.include_router(item_router)
+app.include_router(user_router)
 
-# =============================================================================
-# 6. ENTRY POINT (solo para desarrollo con --reload)
-# =============================================================================
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8050)),
-        reload=os.getenv("ENVIRONMENT") != "production",
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8050)), reload=os.getenv("ENVIRONMENT") != "production")

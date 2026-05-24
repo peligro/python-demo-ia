@@ -1,33 +1,41 @@
-from fastapi import status
-from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.exceptions import RequestValidationError
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+import os
 
-async def http_exception_handler(request, exc: StarletteHTTPException):
-    if exc.status_code == status.HTTP_404_NOT_FOUND:
-        return JSONResponse(status_code=404, content={"estado": "error", "mensaje": "Ruta no encontrada"})
-    if exc.status_code == status.HTTP_405_METHOD_NOT_ALLOWED:
-        return JSONResponse(status_code=405, content={"estado": "error", "mensaje": "Método no permitido"})
-    return JSONResponse(status_code=exc.status_code, content={"estado": "error", "mensaje": str(exc.detail)})
+class SetSecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
 
-async def manejar_errores_validacion(request, exc: RequestValidationError):
-    errores = []
-    for error in exc.errors():
-        # Pydantic V2: loc es ('body', 'campo', ...) o ('query', 'campo')
-        campo = ".".join(str(x) for x in error["loc"][1:]) if len(error["loc"]) > 1 else "desconocido"
-        mensaje = error.get("msg", "Error de validación")
+        # API B2: Anti-cache para respuestas sensibles
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
 
-        # ✅ Limpieza segura sin eval() (Vulnerabilidad RCE eliminada)
-        if mensaje.startswith("Value error, "):
-            mensaje = mensaje[len("Value error, "):]
-        elif "Input should be a valid" in mensaje or "string type expected" in mensaje:
-            mensaje = f"El campo {campo} tiene un formato inválido"
-        elif mensaje == "Field required":
-            mensaje = f"El campo {campo} es obligatorio"
+        # WEB B3: Eliminar divulgación de tecnología
+        # ✅ Usar 'del' en lugar de .pop() para MutableHeaders
+        if "server" in response.headers:
+            del response.headers["server"]
+        if "x-powered-by" in response.headers:
+            del response.headers["x-powered-by"]
 
-        errores.append({"campo": campo, "mensaje": mensaje})
+        # OWASP Secure Headers (API M1 / WEB M4)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"estado": "error", "mensaje": "Errores de validación", "errores": errores}
-    )
+        # HSTS solo en producción
+        if os.getenv("ENVIRONMENT") == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+
+        # CSP restrictivo para APIs, mínimo necesario para Docs
+        doc_paths = ["/docs", "/openapi.json", "/redoc"]
+        if not any(request.url.path.startswith(p) for p in doc_paths):
+            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data:; "
+                "font-src 'self' https://fonts.gstatic.com;"
+            )
+
+        return response
