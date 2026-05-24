@@ -6,7 +6,7 @@ from database.database import get_session
 from services.auth.auth_service import AuthService
 from schemas.auth import LoginRequest, MeResponse
 from middleware.auth import get_current_user
-from utilidades.redis_client import redis_client
+from common.redis_client import redis_client
 import os
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])

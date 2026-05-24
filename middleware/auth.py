@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
-from utilidades.redis_client import redis_client
+from common.redis_client import redis_client
 from sqlmodel import Session, select
 from database.database import get_session
 from models.user import User

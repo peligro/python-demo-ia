@@ -1,8 +1,8 @@
 from sqlmodel import Session, select
 from models.user import User
 from models.user_metadata import UserMetadata
-from utilidades.utilidades import verify_password, generate_hash
-from utilidades.redis_client import redis_client
+from common.common import verify_password, generate_hash
+from common.redis_client import redis_client
 from datetime import datetime, timezone
 import secrets
 import os

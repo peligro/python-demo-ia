@@ -1,9 +1,12 @@
+# main.py
 from fastapi import FastAPI, status, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 import os
 
@@ -18,32 +21,41 @@ from router.item.item_router import router as item_router
 from router.user.user_router import router as user_router
 from router.auth.auth_router import router as auth_router
 
+# Middlewares (sin API Key - usamos cookies HttpOnly)
+from middleware.security_headers import SecurityHeadersMiddleware
+from middleware.rate_limiter import limiter
 
-# Swagger custom
+# Swagger
 from swagger.openapi import custom_openapi
 
 app = FastAPI(
     title=os.getenv("PRODUCT_NAME", "API Demo"),
     description="API modular con FastAPI + SQLModel",
     version="0.0.1",
-    docs_url=None,
+    docs_url=None,  # Deshabilitamos /docs default
     redoc_url=None,
     openapi_url="/openapi.json"
 )
 
 # =============================================================================
-# CORS BÁSICO (sin configuración compleja por ahora)
+# MIDDLEWARES
 # =============================================================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 🔒 Cambiar en producción
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Rate limiting con slowapi (automático con default_limits)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
 # =============================================================================
-# EXCEPTION HANDLERS (inline, sin imports problemáticos)
+# EXCEPTION HANDLERS
 # =============================================================================
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -68,19 +80,28 @@ async def manejar_errores_validacion(request: Request, exc: RequestValidationErr
         errores.append({"campo": campo, "mensaje": mensaje})
     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"estado": "error", "mensaje": "Errores de validación", "errores": errores})
 
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={"estado": "error", "mensaje": "Demasiadas solicitudes. Intenta más tarde."}
+    )
+
 # =============================================================================
-# SWAGGER
+# SWAGGER (solo en local/development)
 # =============================================================================
 app.openapi = custom_openapi(app)
 
-@app.get("/docs", include_in_schema=False)
-async def swagger_documentation():
-    return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{os.getenv('PRODUCT_NAME', 'API')} - Documentación")
+# ✅ Solo mostrar documentación si NO es producción
+if os.getenv("ENVIRONMENT") != "production":
+    @app.get("/docs", include_in_schema=False)
+    async def swagger_documentation():
+        return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{os.getenv('PRODUCT_NAME', 'API')} - Documentación")
 
-@app.get("/redoc", include_in_schema=False)
-async def redoc_documentation():
-    from fastapi.openapi.redoc import get_redoc_html
-    return get_redoc_html(openapi_url="/openapi.json", title="ReDoc")
+    @app.get("/redoc", include_in_schema=False)
+    async def redoc_documentation():
+        from fastapi.openapi.docs import get_redoc_html
+        return get_redoc_html(openapi_url="/openapi.json", title="ReDoc")
 
 # =============================================================================
 # RUTAS
@@ -102,7 +123,6 @@ app.include_router(module_router)
 app.include_router(item_router)
 app.include_router(user_router)
 app.include_router(auth_router)
-
 
 if __name__ == "__main__":
     import uvicorn

@@ -3,7 +3,7 @@ from sqlalchemy.orm import selectinload
 from models.user import User
 from models.user_metadata import UserMetadata
 from schemas.user import UserCreate, UserUpdate
-from utilidades.utilidades import generate_hash
+from common.common import generate_hash
 from fastapi import HTTPException, status
 from datetime import datetime, timezone
 from typing import Optional
