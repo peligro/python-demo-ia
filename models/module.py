@@ -11,3 +11,5 @@ class Module(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now)
 
     profile_modules: list["ProfileModule"] = Relationship(back_populates="module")
+    app_menus: list["AppMenu"] = Relationship(back_populates="module")
+    home_menus: list["HomeMenu"] = Relationship(back_populates="module")

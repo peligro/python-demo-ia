@@ -6,7 +6,9 @@ from models.profile_module import ProfileModule
 from models.profile_module_item import ProfileModuleItem
 from models.user import User
 from models.user_metadata import UserMetadata
+from models.app_menu import AppMenu
+from models.home_menu import HomeMenu
 
 
 # Opcional: exportarlos para uso externo
-__all__ = ["State", "Profile", "Module", "Item", "ProfileModule", "ProfileModuleItem", "User", "UserMetadata"]
+__all__ = ["State", "Profile", "Module", "Item", "ProfileModule", "ProfileModuleItem", "User", "UserMetadata", "AppMenu", "HomeMenu"]

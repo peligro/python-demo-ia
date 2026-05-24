@@ -20,6 +20,8 @@ from router.module.module_router import router as module_router
 from router.item.item_router import router as item_router
 from router.user.user_router import router as user_router
 from router.auth.auth_router import router as auth_router
+from router.app_menu.app_menu_router import router as app_menu_router
+from router.home_menu.home_menu_router import router as home_menu_router
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
 from middleware.security_headers import SecurityHeadersMiddleware
@@ -122,7 +124,10 @@ app.include_router(profile_router)
 app.include_router(module_router)
 app.include_router(item_router)
 app.include_router(user_router)
+app.include_router(app_menu_router)
 app.include_router(auth_router)
+app.include_router(home_menu_router)
+
 
 if __name__ == "__main__":
     import uvicorn
