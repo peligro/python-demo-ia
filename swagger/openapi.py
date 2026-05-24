@@ -35,6 +35,7 @@ OPENAPI_TAGS = [
     {"name": "User", "description": "Listar usuarios"},
     {"name": "App Menu", "description": "Listar menús de la aplicación"},
     {"name": "Home Menu", "description": "Listar menús del home"},
+    {"name": "Authentication", "description": "Endpoints de autenticación"}
 ]
 
 # Función para generar el esquema OpenAPI personalizado

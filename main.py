@@ -16,6 +16,7 @@ from router.profile.profile_router import router as profile_router
 from router.module.module_router import router as module_router
 from router.item.item_router import router as item_router
 from router.user.user_router import router as user_router
+from router.auth.auth_router import router as auth_router
 
 
 # Swagger custom
@@ -100,6 +101,7 @@ app.include_router(profile_router)
 app.include_router(module_router)
 app.include_router(item_router)
 app.include_router(user_router)
+app.include_router(auth_router)
 
 
 if __name__ == "__main__":
