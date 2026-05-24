@@ -26,6 +26,7 @@ from router.home_menu.home_menu_router import router as home_menu_router
 # Middlewares (sin API Key - usamos cookies HttpOnly)
 from middleware.security_headers import SecurityHeadersMiddleware
 from middleware.rate_limiter import limiter
+from middleware.disable_options import DisableOptionsMiddleware
 
 # Swagger
 from swagger.openapi import custom_openapi
@@ -49,7 +50,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.add_middleware(DisableOptionsMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiting con slowapi (automático con default_limits)

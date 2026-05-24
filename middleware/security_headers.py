@@ -32,11 +32,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # CSP
         doc_paths = ["/docs", "/openapi.json", "/redoc"]
         if not any(request.url.path.startswith(p) for p in doc_paths):
-            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
+            # ✅ CSP para API: restrictivo pero permite recursos del frontend
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+                "img-src 'self' data: https://www.cesarcancino.com https://cdnjs.cloudflare.com; "
+                "font-src 'self' https://cdnjs.cloudflare.com; "
+                "script-src 'self' 'unsafe-inline'; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none';"
+            )
         else:
+            # CSP más permisivo para Swagger/ReDoc (necesitan CDN para funcionar)
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "img-src 'self' data:; font-src 'self' https://fonts.gstatic.com;"
+                "img-src 'self' data:; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "frame-ancestors 'none';"
             )
 
         return response
