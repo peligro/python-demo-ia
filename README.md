@@ -4,11 +4,10 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://github.com/peligro/python-demo-ia-react)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-24-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-
 ---
 
 ## 📋 Tabla de Contenidos
@@ -157,53 +156,67 @@
 
 ## 📁 Estructura del Proyecto
 
+### Backend (`python/`)
 ```text
-tamila-saas/
-├── 📦 python/                 # Backend en Python/FastAPI
-│   ├── 📁 fastapi/
-│   │   ├── main.py           # Entry point + middlewares globales
-│   │   ├── 📁 common/        # Utilidades compartidas
-│   │   │   ├── constants.py  # Constantes: slugs, códigos de items
-│   │   │   └── redis_client.py # Cliente Redis singleton
-│   │   ├── 📁 database/      # Configuración de DB
-│   │   │   └── database.py   # Conexión SQLModel + engine
-│   │   ├── 📁 middleware/    # Middlewares reutilizables
-│   │   │   ├── auth.py       # Validación de sesión (cookie + Redis)
-│   │   │   ├── rbac.py       # Autorización granular (require_permission)
-│   │   │   ├── security_headers.py # Headers OWASP
-│   │   │   ├── rate_limiter.py # slowapi + Redis
-│   │   │   └── disable_options.py # Mitiga API B1
-│   │   ├── 📁 models/        # Modelos SQLModel
-│   │   │   ├── user.py, profile.py, module.py, app_menu.py, home_menu.py
-│   │   ├── 📁 schemas/       # Pydantic schemas
-│   │   │   ├── user.py, auth.py, app_menu.py
-│   │   ├── 📁 services/      # Lógica de negocio
-│   │   │   ├── auth/, user/, app_menu/, ...
-│   │   ├── 📁 router/        # Endpoints por módulo
-│   │   │   ├── auth/, user/, app_menu/, ...
-│   │   ├── 📁 alembic/       # Migraciones de DB
-│   │   ├── requirements.txt
-│   │   └── Dockerfile
-│   │
-│   └── 📦 react/            # Frontend en React
-│       ├── src/
-│       │   ├── common/api/api.ts      # Instancia axios centralizada
-│       │   ├── common/interfaces/     # Tipos TypeScript
-│       │   ├── common/services/       # Servicios API
-│       │   ├── components/Sidebar.tsx # Menús dinámicos con íconos
-│       │   ├── context/AuthContext.tsx
-│       │   ├── modules/seguridad/     # Login, auth services
-│       │   └── modules/admin/         # Paneles administrativos
-│       ├── package.json
-│       └── vite.config.ts
-│
-├── docker-compose.yml        # Orquestación de servicios
+tamila-saas-backend/          # Repo: https://github.com/peligro/python-demo-ia
+├── 📁 fastapi/
+│   ├── main.py               # Entry point + middlewares globales
+│   ├── 📁 common/            # Utilidades compartidas
+│   │   ├── constants.py      # Constantes: slugs, códigos de items
+│   │   └── redis_client.py   # Cliente Redis singleton
+│   ├── 📁 database/          # Configuración de DB
+│   │   └── database.py       # Conexión SQLModel + engine
+│   ├── 📁 middleware/        # Middlewares reutilizables
+│   │   ├── auth.py           # Validación de sesión (cookie + Redis)
+│   │   ├── rbac.py           # Autorización granular (require_permission)
+│   │   ├── security_headers.py # Headers OWASP
+│   │   ├── rate_limiter.py   # slowapi + Redis
+│   │   └── disable_options.py # Mitiga API B1
+│   ├── 📁 models/            # Modelos SQLModel
+│   │   ├── user.py, profile.py, module.py, app_menu.py, home_menu.py
+│   ├── 📁 schemas/           # Pydantic schemas
+│   │   ├── user.py, auth.py, app_menu.py
+│   ├── 📁 services/          # Lógica de negocio
+│   │   ├── auth/, user/, app_menu/, ...
+│   ├── 📁 router/            # Endpoints por módulo
+│   │   ├── auth/, user/, app_menu/, ...
+│   ├── 📁 alembic/           # Migraciones de DB
+│   ├── requirements.txt
+│   └── Dockerfile
+├── docker-compose.yml        # Orquesta backend + DB + Redis
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
-### 🚀 Instalación
-
  
+
+### Frontend (react/)
+
+```text
+python-demo-ia-react/         # Repo: https://github.com/peligro/python-demo-ia-react
+├── src/
+│   ├── common/
+│   │   ├── api/api.ts        # Instancia axios centralizada
+│   │   ├── interfaces/       # Tipos TypeScript
+│   │   └── services/         # Servicios API
+│   ├── components/
+│   │   ├── Sidebar.tsx       # Menús dinámicos con íconos Font Awesome
+│   │   ├── Header.tsx
+│   │   └── ...
+│   ├── context/
+│   │   └── AuthContext.tsx   # Estado de autenticación global
+│   ├── modules/
+│   │   ├── seguridad/        # Login, auth services
+│   │   └── admin/            # Paneles administrativos
+│   ├── main.tsx
+│   └── router.tsx
+├── package.json
+├── vite.config.ts
+├── .env.example
+└── README.md
+```
+
+
 ## 🚀 Instalación
 
 ### Requisitos Previos
@@ -211,17 +224,31 @@ tamila-saas/
 - Python 3.12+ (para desarrollo local sin Docker)
 - Node.js 18+ y npm (para frontend)
 
-### 1. Clonar el repositorio
+
+### 1. Clonar ambos repositorios
 ```bash
+# Backend
 git clone https://github.com/peligro/python-demo-ia.git
-cd tamila-saas/python
+cd python-demo-ia
+
+# Frontend (en paralelo)
+git clone https://github.com/peligro/python-demo-ia-react.git
 ```
 
 ### 2. Configurar variables de entorno
 
+### backend
 ```bash
+cd python-demo-ia
 cp .env.example .env
-# Editar con tus configuraciones: DATABASE_URL, REDIS_HOST, etc.
+# Editar con tus configuraciones: DATABASE_URL, REDIS_HOST, API keys de IA, etc.
+```
+
+### frontend
+```bash
+cd python-demo-ia-react
+cp .env.example .env
+# Editar VITE_API_URL para apuntar al backend
 ```
 
 ### 3. Levantar servicios con Docker
