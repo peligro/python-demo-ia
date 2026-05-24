@@ -1,10 +1,13 @@
 # FastAPI y servidor
 fastapi>=0.115.12
 fastapi-cli==0.0.7
+
 #form data
-python-multipart==0.0.20
+python-multipart>=0.0.27 
+
 #dovenv
 python-dotenv>=1.0.0
+
 # conexión AWS
 boto3==1.35.87
 
@@ -20,7 +23,6 @@ python-slugify==8.0.4
 #bcrypt
 bcrypt==4.3.0
 
-
 #base de datos
 psycopg2-binary==2.9.9
 sqlmodel==0.0.24
@@ -34,7 +36,11 @@ pytest-cov>=5.0.0
 
 pre-commit>=4.0.0
 
-redis==5.0.1
+# Redis para sesiones
+redis>=5.0.1
 
-# Auditoría de seguridad de dependencias
+# Auditoría de seguridad
 pip_audit==2.10.0
+
+# Rate limiting (para API M3)
+slowapi>=0.1.9
