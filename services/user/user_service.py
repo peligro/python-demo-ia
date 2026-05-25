@@ -15,7 +15,9 @@ class UserService:
 
     def create(self, user_in: UserCreate) -> User:
         # Validar email único
-        existing = self.session.exec(select(User).where(User.email == user_in.email)).first()
+        existing = self.session.exec(
+            select(User).where(User.email == user_in.email)
+        ).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -32,11 +34,12 @@ class UserService:
         self.session.commit()
         self.session.refresh(db_user)
         
-        # ✅ CREAR METADATA POR DEFECTO (state_id=1=Activo, profile_id=3=Sin Acceso)
+        # ✅ CREAR METADATA CON VALORES POR DEFECTO O LOS ENVIADOS
         default_meta = UserMetadata(
             user_id=db_user.id,
-            state_id=1,      # Activo
-            profile_id=3     # Sin Acceso
+            phone=user_in.phone,
+            state_id=user_in.state_id or 1,      # 1 = Activo por defecto
+            profile_id=user_in.profile_id or 3   # 3 = Sin Acceso por defecto
         )
         self.session.add(default_meta)
         self.session.commit()
@@ -103,6 +106,7 @@ class UserService:
     def update(self, user_id: int, user_in: UserUpdate) -> User:
         db_user = self.get_by_id(user_id)
         
+        # Actualizar campos del usuario
         if user_in.email and user_in.email != db_user.email:
             existing = self.session.exec(
                 select(User).where(and_(User.email == user_in.email, User.id != user_id))
@@ -119,11 +123,29 @@ class UserService:
             
         if user_in.password:
             db_user.password = generate_hash(user_in.password)
-            
+        
         db_user.updated_at = datetime.now(timezone.utc)
         self.session.add(db_user)
         self.session.commit()
         self.session.refresh(db_user)
+        
+        # ✅ ACTUALIZAR METADATA (profile_id, state_id, phone)
+        metadata = self.session.exec(
+            select(UserMetadata).where(UserMetadata.user_id == user_id)
+        ).first()
+        
+        if metadata:
+            # Actualizar solo los campos que vinieron en el request
+            if user_in.phone is not None:
+                metadata.phone = user_in.phone
+            if user_in.profile_id is not None:
+                metadata.profile_id = user_in.profile_id
+            if user_in.state_id is not None:
+                metadata.state_id = user_in.state_id
+            
+            self.session.add(metadata)
+            self.session.commit()
+        
         return db_user
 
     def delete(self, user_id: int) -> bool:

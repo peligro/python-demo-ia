@@ -7,9 +7,16 @@ class UserCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: str = Field(..., max_length=255)
     password: str = Field(..., min_length=8, description="Mínimo 8 caracteres")
+    phone: Optional[str] = Field(None, max_length=50)
+    profile_id: Optional[int] = Field(None, ge=1)  # ✅ OPCIONAL
+    state_id: Optional[int] = Field(None, ge=1)    # ✅ OPCIONAL
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"name": "Admin", "email": "admin@demo.com", "password": "SecurePass123!"}
+            "example": {
+                "name": "Admin",
+                "email": "admin@demo.com",
+                "password": "SecurePass123!"
+            }
         }
     )
 
@@ -18,6 +25,9 @@ class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = Field(None, min_length=8)
+    phone: Optional[str] = Field(None, max_length=50)
+    profile_id: Optional[int] = Field(None, ge=1)
+    state_id: Optional[int] = Field(None, ge=1)
     model_config = ConfigDict(
         json_schema_extra={"example": {"name": "Nuevo Nombre"}}
     )
