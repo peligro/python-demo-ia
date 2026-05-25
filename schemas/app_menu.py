@@ -58,7 +58,8 @@ class AppMenuPublic(BaseModel):
     order: int
     parent_id: Optional[int]
     module_id: Optional[int]
-    module_slug: Optional[str] = None  # ✅ Slug del módulo relacionado
+    module_slug: Optional[str] = None
+    parent: Optional[dict] = None
     model_config = ConfigDict(from_attributes=True)
 
 

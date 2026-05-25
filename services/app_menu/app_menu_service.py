@@ -1,4 +1,4 @@
-from sqlmodel import Session, select, func, and_
+from sqlmodel import Session, select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from models.app_menu import AppMenu
 from models.module import Module
@@ -21,7 +21,7 @@ class AppMenuService:
         return {pm.module_id for pm in profile_modules if pm.module_id}
 
     def _build_app_menu_response(self, menu: AppMenu) -> dict:
-        """Construir respuesta con module_slug si existe"""
+        """Construir respuesta con module_slug y parent si existen"""
         data = {
             "id": menu.id,
             "label": menu.label,
@@ -31,9 +31,22 @@ class AppMenuService:
             "parent_id": menu.parent_id,
             "module_id": menu.module_id,
             "module_slug": None,
+            "parent": None,
         }
+        
+        # Agregar module_slug si existe
         if menu.module and menu.module.slug:
             data["module_slug"] = menu.module.slug
+        
+        # Agregar información del padre si existe
+        if menu.parent_id:
+            parent_menu = self.session.get(AppMenu, menu.parent_id)
+            if parent_menu:
+                data["parent"] = {
+                    "id": parent_menu.id,
+                    "label": parent_menu.label
+                }
+        
         return data
 
     def create(self, menu_in: AppMenuCreate, profile_id: int) -> AppMenu:
@@ -70,12 +83,17 @@ class AppMenuService:
         menus = self.session.exec(stmt).all()
         return [self._build_app_menu_response(m) for m in menus]
 
-    def get_paginated(self, page: int, limit: int, profile_id: int) -> dict:
-        """Listar con paginación, filtrado por permisos"""
+    def get_paginated(self, page: int, limit: int, profile_id: int, search: Optional[str] = None) -> dict:
+        """Listar con paginación, filtrado por permisos y búsqueda opcional"""
+        from sqlalchemy import and_
+        
         offset = (page - 1) * limit
         allowed_modules = self._get_allowed_module_ids(profile_id)
         
+        # Query base con filtros de permisos
         base_stmt = select(AppMenu).outerjoin(Module)
+        
+        # Filtro de módulos permitidos
         if allowed_modules:
             base_stmt = base_stmt.where(
                 and_(AppMenu.module_id.isnot(None), AppMenu.module_id.in_(allowed_modules))
@@ -83,10 +101,23 @@ class AppMenuService:
         else:
             base_stmt = base_stmt.where(AppMenu.module_id.is_(None))
         
+        # ✅ Filtro de búsqueda (label o title)
+        if search:
+            search_pattern = f"%{search}%"
+            base_stmt = base_stmt.where(
+                or_(
+                    AppMenu.label.ilike(search_pattern),
+                    AppMenu.title.ilike(search_pattern),
+                    AppMenu.icon.ilike(search_pattern)
+                )
+            )
+        
+        # Total de registros (con filtros aplicados)
         total = self.session.exec(
             select(func.count()).select_from(base_stmt.subquery())
         ).one()
         
+        # Datos paginados
         stmt = base_stmt.order_by(AppMenu.order, AppMenu.label).offset(offset).limit(limit)
         menus = self.session.exec(stmt).all()
         

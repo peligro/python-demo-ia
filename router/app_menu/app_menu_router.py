@@ -46,15 +46,28 @@ async def list_all_menus(
     return service.get_all_flat(profile_id)
 
 
+@router.get("/parents", response_model=list[AppMenuPublic])
+async def list_parent_menus(
+    profile_id: int = Depends(get_profile_id),
+    service: AppMenuService = Depends(get_app_menu_service)
+):
+    """Listar solo menús que pueden ser padres (sin padre propio)"""
+    all_menus = service.get_all_flat(profile_id)
+    # Filtrar: solo menús sin parent_id pueden ser padres
+    parents = [m for m in all_menus if m["parent_id"] is None]
+    return parents
+
+
 @router.get("", response_model=AppMenuListResponse)
 async def list_menus(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None, min_length=1),  # ✅ Agregar parámetro search
     profile_id: int = Depends(get_profile_id),
     service: AppMenuService = Depends(get_app_menu_service)
 ):
-    """Listar con paginación, filtrado por permisos"""
-    return service.get_paginated(page, limit, profile_id)
+    """Listar con paginación, filtrado por permisos y búsqueda opcional"""
+    return service.get_paginated(page, limit, profile_id, search)
 
 
 # =============================================================================
@@ -73,7 +86,7 @@ async def get_app_menu(
 @router.put("/{menu_id}", response_model=AppMenuRead)
 async def update_app_menu(
     menu_id: int = Path(..., ge=1),
-    menu_in: AppMenuUpdate = Body(...),  # ✅ CORREGIDO: = Body(...)
+    menu_in: AppMenuUpdate = Body(...),
     profile_id: int = Depends(get_profile_id),
     service: AppMenuService = Depends(get_app_menu_service)
 ):
