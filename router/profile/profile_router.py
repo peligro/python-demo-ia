@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Depends, status, Path, Body
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, status, Query, Path, Body, HTTPException
+from sqlmodel import Session, select, and_
 from database.database import get_session
 from services.profile.profile_service import ProfileService
-from schemas.profile import ProfileCreate, ProfileUpdate, ProfilePublic, ProfileRead
+from schemas.profile import ProfileCreate, ProfileUpdate, ProfilePublic, ProfileRead, ProfileListResponse
 from schemas.module import ModuleRead
 from schemas.item import ItemPublic, ItemRead
 from middleware.rbac import require_module, require_item
 from common.constants import SETTINGS_PROFILES
+from models.profile_module import ProfileModule  # ✅ Importar modelo para las sub-rutas
+from typing import Optional  # ✅ Importar Optional
 
 router = APIRouter(prefix="/profiles", tags=["Profile"])
 
 def get_profile_service(session: Session = Depends(get_session)) -> ProfileService:
     return ProfileService(session)
+
+# =============================================================================
+# ✅ CRUD BÁSICO DE PERFILES
+# =============================================================================
 
 @router.post(
     "",
@@ -22,13 +28,30 @@ def get_profile_service(session: Session = Depends(get_session)) -> ProfileServi
 async def create_profile(profile_in: ProfileCreate, service: ProfileService = Depends(get_profile_service)):
     return service.create(profile_in)
 
+# ✅ Para el select de usuarios (sin paginación)
 @router.get(
-    "",
+    "/all",
     response_model=list[ProfilePublic],
     dependencies=[Depends(require_module(SETTINGS_PROFILES))]
 )
-async def list_profiles(service: ProfileService = Depends(get_profile_service)):
+async def list_all_profiles(service: ProfileService = Depends(get_profile_service)):
+    """Listar todos los perfiles (para select de usuarios)"""
     return service.get_all()
+
+# ✅ Para el mantenedor (con paginación y búsqueda)
+@router.get(
+    "",
+    response_model=ProfileListResponse,
+    dependencies=[Depends(require_module(SETTINGS_PROFILES))]
+)
+async def list_profiles(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None, min_length=2),  # ✅ Ahora Optional está definido
+    service: ProfileService = Depends(get_profile_service)
+):
+    """Listar perfiles con paginación y búsqueda (para mantenedor)"""
+    return service.get_paginated(page, limit, search)
 
 @router.get(
     "/{profile_id}",
@@ -55,7 +78,10 @@ async def delete_profile(profile_id: int, service: ProfileService = Depends(get_
     service.delete(profile_id)
     return None
 
-# Sub-rutas de módulos (mismos permisos que el módulo padre)
+# =============================================================================
+# ✅ SUB-RUTAS: MÓDULOS DEL PERFIL
+# =============================================================================
+
 @router.get(
     "/{profile_id}/modules",
     response_model=list[ModuleRead],
@@ -70,7 +96,11 @@ async def get_profile_modules(profile_id: int = Path(..., ge=1), service: Profil
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_item(SETTINGS_PROFILES, "assign_profile_module"))]
 )
-async def assign_module_to_profile(profile_id: int = Path(..., ge=1), module_id: int = Body(..., ge=1, embed=True), service: ProfileService = Depends(get_profile_service)):
+async def assign_module_to_profile(
+    profile_id: int = Path(..., ge=1), 
+    module_id: int = Body(..., ge=1, embed=True), 
+    service: ProfileService = Depends(get_profile_service)
+):
     return service.assign_module_to_profile(profile_id, module_id).module
 
 @router.delete(
@@ -78,21 +108,34 @@ async def assign_module_to_profile(profile_id: int = Path(..., ge=1), module_id:
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_item(SETTINGS_PROFILES, "remove_profile_module"))]
 )
-async def remove_module_from_profile(profile_id: int = Path(..., ge=1), module_id: int = Path(..., ge=1), service: ProfileService = Depends(get_profile_service)):
+async def remove_module_from_profile(
+    profile_id: int = Path(..., ge=1), 
+    module_id: int = Path(..., ge=1), 
+    service: ProfileService = Depends(get_profile_service)
+):
     service.remove_module_from_profile(profile_id, module_id)
     return None
 
-# Sub-rutas de items
+# =============================================================================
+# ✅ SUB-RUTAS: ITEMS DEL PERFIL-MÓDULO
+# =============================================================================
+
 @router.get(
     "/{profile_id}/modules/{module_id}/items",
     response_model=list[ItemPublic],
     dependencies=[Depends(require_item(SETTINGS_PROFILES, "view_profile_module_items"))]
 )
-async def get_profile_module_items(profile_id: int = Path(..., ge=1), module_id: int = Path(..., ge=1), service: ProfileService = Depends(get_profile_service)):
-    from sqlmodel import select, and_
-    from models.profile_module import ProfileModule
-    from fastapi import HTTPException
-    pm = service.session.exec(select(ProfileModule).where(and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id))).first()
+async def get_profile_module_items(
+    profile_id: int = Path(..., ge=1), 
+    module_id: int = Path(..., ge=1), 
+    service: ProfileService = Depends(get_profile_service)
+):
+    # ✅ Imports locales ya no necesarios (están arriba)
+    pm = service.session.exec(
+        select(ProfileModule).where(
+            and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id)
+        )
+    ).first()
     if not pm:
         raise HTTPException(status_code=404, detail="ProfileModule no encontrado")
     return service.get_items_by_profile_module(pm.id)
@@ -103,11 +146,18 @@ async def get_profile_module_items(profile_id: int = Path(..., ge=1), module_id:
     status_code=201,
     dependencies=[Depends(require_item(SETTINGS_PROFILES, "assign_profile_module_item"))]
 )
-async def assign_item_to_profile_module(profile_id: int = Path(..., ge=1), module_id: int = Path(..., ge=1), item_id: int = Body(..., ge=1, embed=True), service: ProfileService = Depends(get_profile_service)):
-    from sqlmodel import select, and_
-    from models.profile_module import ProfileModule
-    from fastapi import HTTPException
-    pm = service.session.exec(select(ProfileModule).where(and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id))).first()
+async def assign_item_to_profile_module(
+    profile_id: int = Path(..., ge=1), 
+    module_id: int = Path(..., ge=1), 
+    item_id: int = Body(..., ge=1, embed=True), 
+    service: ProfileService = Depends(get_profile_service)
+):
+    # ✅ Imports locales ya no necesarios
+    pm = service.session.exec(
+        select(ProfileModule).where(
+            and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id)
+        )
+    ).first()
     if not pm:
         raise HTTPException(status_code=404, detail="ProfileModule no encontrado")
     return service.assign_item_to_profile_module(pm.id, item_id).item
@@ -117,11 +167,18 @@ async def assign_item_to_profile_module(profile_id: int = Path(..., ge=1), modul
     status_code=204,
     dependencies=[Depends(require_item(SETTINGS_PROFILES, "remove_profile_module_item"))]
 )
-async def remove_item_from_profile_module(profile_id: int = Path(..., ge=1), module_id: int = Path(..., ge=1), item_id: int = Path(..., ge=1), service: ProfileService = Depends(get_profile_service)):
-    from sqlmodel import select, and_
-    from models.profile_module import ProfileModule
-    from fastapi import HTTPException
-    pm = service.session.exec(select(ProfileModule).where(and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id))).first()
+async def remove_item_from_profile_module(
+    profile_id: int = Path(..., ge=1), 
+    module_id: int = Path(..., ge=1), 
+    item_id: int = Path(..., ge=1), 
+    service: ProfileService = Depends(get_profile_service)
+):
+    # ✅ Imports locales ya no necesarios
+    pm = service.session.exec(
+        select(ProfileModule).where(
+            and_(ProfileModule.profile_id == profile_id, ProfileModule.module_id == module_id)
+        )
+    ).first()
     if not pm:
         raise HTTPException(status_code=404, detail="ProfileModule no encontrado")
     service.remove_item_from_profile_module(pm.id, item_id)
