@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List
+from schemas.module import ModulePublic
 
 
 class ProfileCreate(BaseModel):
@@ -43,3 +44,17 @@ class ProfileListResponse(BaseModel):
     page: int
     limit: int
     data: List[ProfilePublic]
+
+
+# Respuesta para módulos del perfil
+class ProfileModulesResponse(BaseModel):
+    profile_id: int
+    profile_name: str
+    modules: List["ModulePublic"]
+    module_ids: List[int]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ModuleSyncRequest(BaseModel):
+    modules: List[int] = Field(default_factory=list)
+    model_config = ConfigDict(from_attributes=True)
