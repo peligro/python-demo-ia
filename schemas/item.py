@@ -10,9 +10,10 @@ class ItemCreate(BaseModel):
     @field_validator("code")
     @classmethod
     def validate_code(cls, v: str) -> str:
-        v = v.upper().strip()
-        if not re.match(r"^[A-Z0-9\-_]+$", v):
-            raise ValueError("El código solo puede contener letras mayúsculas, números, guiones y guiones bajos")
+        # ✅ CORREGIDO: Solo validar, NO convertir a mayúsculas
+        v = v.strip()  # Solo quitar espacios
+        if not re.match(r"^[A-Za-z0-9\-_]+$", v):  # ✅ Aceptar mayúsculas y minúsculas
+            raise ValueError("El código solo puede contener letras, números, guiones y guiones bajos")
         return v
 
     model_config = ConfigDict(
@@ -28,9 +29,10 @@ class ItemUpdate(BaseModel):
     def validate_code(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        v = v.upper().strip()
-        if not re.match(r"^[A-Z0-9\-_]+$", v):
-            raise ValueError("El código solo puede contener letras mayúsculas, números, guiones y guiones bajos")
+        # ✅ CORREGIDO: Solo validar, NO convertir a mayúsculas
+        v = v.strip()
+        if not re.match(r"^[A-Za-z0-9\-_]+$", v):
+            raise ValueError("El código solo puede contener letras, números, guiones y guiones bajos")
         return v
 
     model_config = ConfigDict(
@@ -49,4 +51,11 @@ class ItemRead(BaseModel):
     code: str
     created_at: datetime
     updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class ItemListResponse(BaseModel):
+    total: int
+    page: int
+    limit: int
+    data: list[ItemPublic]
     model_config = ConfigDict(from_attributes=True)

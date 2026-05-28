@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, status
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, status, Query
+from sqlmodel import Session, select, func
+from sqlalchemy import desc
 from database.database import get_session
 from services.item.item_service import ItemService
-from schemas.item import ItemCreate, ItemUpdate, ItemPublic, ItemRead
+from schemas.item import ItemCreate, ItemUpdate, ItemPublic, ItemRead, ItemListResponse
 from middleware.rbac import require_module, require_item
 from common.constants import SETTINGS_ITEMS
+from models.item import Item
+from typing import Optional
 
 router = APIRouter(prefix="/items", tags=["Item"])
 
@@ -22,11 +25,41 @@ async def create_item(item_in: ItemCreate, service: ItemService = Depends(get_it
 
 @router.get(
     "",
-    response_model=list[ItemPublic],
+    response_model=ItemListResponse,
     dependencies=[Depends(require_module(SETTINGS_ITEMS))]
 )
-async def list_items(service: ItemService = Depends(get_item_service)):
-    return service.get_all()
+async def list_items(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None, min_length=2),
+    service: ItemService = Depends(get_item_service)
+):
+    """Listar ítems con paginación y búsqueda"""
+    offset = (page - 1) * limit
+    
+    # Query base
+    stmt = select(Item)
+    count_stmt = select(func.count(Item.id))
+    
+    # Filtro de búsqueda
+    if search:
+        search_pattern = f"%{search}%"
+        stmt = stmt.where(Item.name.ilike(search_pattern) | Item.code.ilike(search_pattern))
+        count_stmt = count_stmt.where(Item.name.ilike(search_pattern) | Item.code.ilike(search_pattern))
+    
+    # Total de registros
+    total = service.session.exec(count_stmt).one()
+    
+    # Datos paginados
+    stmt = stmt.order_by(desc(Item.id)).offset(offset).limit(limit)
+    items = service.session.exec(stmt).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": items
+    }
 
 @router.get(
     "/{item_id}",
