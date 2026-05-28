@@ -64,3 +64,11 @@ class ModuleRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class ModuleListResponse(BaseModel):
+    total: int
+    page: int
+    limit: int
+    data: list[ModulePublic]
+    model_config = ConfigDict(from_attributes=True)
