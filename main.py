@@ -22,6 +22,9 @@ from router.user.user_router import router as user_router
 from router.auth.auth_router import router as auth_router
 from router.app_menu.app_menu_router import router as app_menu_router
 from router.home_menu.home_menu_router import router as home_menu_router
+from router.agente_kb.agente_kb_router import router as agente_kb_router
+
+
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
 from middleware.security_headers import SecurityHeadersMiddleware
@@ -128,6 +131,7 @@ app.include_router(user_router)
 app.include_router(app_menu_router)
 app.include_router(auth_router)
 app.include_router(home_menu_router)
+app.include_router(agente_kb_router)
 
 
 if __name__ == "__main__":
