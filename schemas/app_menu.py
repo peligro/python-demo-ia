@@ -3,6 +3,13 @@ from datetime import datetime
 from typing import Optional
 
 
+# ✅ NUEVO: Schema específico para el padre (evita recursión infinita)
+class AppMenuParent(BaseModel):
+    id: int
+    label: str
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AppMenuCreate(BaseModel):
     label: str = Field(..., min_length=2, max_length=200)
     title: str = Field(..., min_length=2, max_length=200)
@@ -59,7 +66,7 @@ class AppMenuPublic(BaseModel):
     parent_id: Optional[int]
     module_id: Optional[int]
     module_slug: Optional[str] = None
-    parent: Optional[dict] = None
+    parent: Optional[AppMenuParent] = None  # ✅ CAMBIO: Usar AppMenuParent en lugar de dict
     model_config = ConfigDict(from_attributes=True)
 
 

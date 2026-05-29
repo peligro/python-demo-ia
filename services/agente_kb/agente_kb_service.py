@@ -4,12 +4,12 @@ import uuid
 import os
 from typing import Optional, List
 from datetime import datetime, timezone
-import httpx
 
 from sqlmodel import Session, select
 from models.kb_entry import KBEntry
 from models.query_log import QueryLog
 from schemas.agente_kb import QueryResponse, MetricsSchema
+from integraciones.agente_kb_integration import AgenteKBIntegration
 
 
 class AgenteKBService:
@@ -19,7 +19,7 @@ class AgenteKBService:
     """
     
     def __init__(self, session: Session):
-        # ✅ Recibir sesión inyectada desde el router
+        # Recibir sesión inyectada desde el router
         self.session = session
         self.example_id = "agente-kb"
         
@@ -46,7 +46,6 @@ class AgenteKBService:
             kb_match = self._match_kb(query)
             
             if kb_match:
-                # ✅ MATCH EN KB
                 return await self._handle_kb_match(
                     kb_match=kb_match,
                     query=query,
@@ -92,7 +91,6 @@ class AgenteKBService:
         """Maneja una respuesta desde la KB"""
         latency_ms = int((time.time() - start_time) * 1000)
         
-        # Registrar log
         self._log_query(
             query=query,
             kb_entry_id=kb_match.id,
@@ -130,16 +128,14 @@ class AgenteKBService:
         start_time: float
     ) -> QueryResponse:
         """Maneja fallback a IA cuando no hay match en KB"""
-        # Obtener template base
         kb_entry_for_template = self._get_active_kb_entry()
         prompt = self._build_prompt(query, user_name, kb_entry_for_template)
         
-        # Llamada real a la API de IA
+        # Llamada real a la API de IA usando integración
         ai_response, tokens = await self._call_ai_api(query, prompt, model)
         
         latency_ms = int((time.time() - start_time) * 1000)
         
-        # Registrar log con el prompt real enviado
         self._log_query(
             query=query,
             kb_entry_id=None,
@@ -183,7 +179,6 @@ class AgenteKBService:
         """Maneja errores generales"""
         latency_ms = int((time.time() - start_time) * 1000)
         
-        # Registrar error en logs
         self._log_query(
             query=query,
             response_source="error",
@@ -208,10 +203,7 @@ class AgenteKBService:
     # =========================================================================
     
     def _match_kb(self, query: str) -> Optional[KBEntry]:
-        """
-        Busca un match en la KB usando regex patterns.
-        """
-        # Refrescar cache si expiró
+        """Busca un match en la KB usando regex patterns."""
         if self._kb_cache is None or (time.time() - self._cache_timestamp) > self._cache_ttl:
             self._kb_cache = self._load_kb_from_db()
             self._cache_timestamp = time.time()
@@ -225,7 +217,6 @@ class AgenteKBService:
                         return entry
                 except re.error:
                     continue
-                    
         return None
     
     def _load_kb_from_db(self) -> List[KBEntry]:
@@ -248,44 +239,48 @@ class AgenteKBService:
     
     def _build_prompt(self, query: str, user_name: str, kb_entry: Optional[KBEntry]) -> str:
         """Construye el prompt final para la IA"""
-        # Si hay un template definido en la KB, lo usamos
         template = kb_entry.prompt_template if kb_entry and kb_entry.prompt_template else (
-            "Eres un asistente experto en logística de Cencosud. "
+            "Eres un asistente experto en logística. "
             "Responde la pregunta del usuario de forma clara, práctica y en español.\n\n"
             "Usuario: {user_name}\n"
             "Pregunta: {query}\n\n"
             "Respuesta:"
         )
-        
-        return template.format(
-            query=query,
-            user_name=user_name,
-            context=""
-        )
+        return template.format(query=query, user_name=user_name, context="")
     
     async def _call_ai_api(self, query: str, prompt: str, model: str) -> tuple[str, dict]:
         """
-        Llama a la API de IA (Mistral, Gemini, etc.).
-        TODO: Implementar con las URLs que te pasé
+        Llama a la API de IA usando el servicio de integración
         """
-        # Por ahora, respuesta simulada
-        # Cuando implementes, usa httpx.AsyncClient()
-        
-        # Ejemplo estructura:
-        # async with httpx.AsyncClient() as client:
-        #     response = await client.post(
-        #         "https://api.mistral.ai/v1/chat/completions",
-        #         json={"model": model, "messages": [{"role": "user", "content": prompt}]},
-        #         headers={"Authorization": f"Bearer {os.getenv('MISTRAL_API_KEY')}"}
-        #     )
-        #     data = response.json()
-        #     return data['choices'][0]['message']['content'], data['usage']
-        
-        return (
-            "Respuesta simulada - Implementar llamada real a IA. "
-            f"Tu pregunta fue: '{query}'",
-            {"input": 10, "output": 20, "total": 30}
-        )
+        try:
+            provider = self._get_provider_from_model(model)
+            result = AgenteKBIntegration.chat_unificado(
+                provider=provider,
+                prompt=prompt,
+                model=model
+            )
+            return result["response"], result["usage"]
+        except Exception as e:
+            print(f"[AgenteKB] Error en llamada a IA: {e}")
+            return (
+                "Error al conectar con el servicio de IA. Intenta nuevamente.",
+                {"input": 0, "output": 0, "total": 0}
+            )
+    
+    def _get_provider_from_model(self, model: str) -> str:
+        """Determina el proveedor basado en el nombre del modelo"""
+        model_lower = model.lower()
+        if 'mistral' in model_lower:
+            return 'mistral'
+        elif 'gemini' in model_lower:
+            return 'gemini'
+        elif 'claude' in model_lower:
+            return 'claude'
+        elif 'gpt' in model_lower or 'openai' in model_lower:
+            return 'openai'
+        elif 'deepseek' in model_lower:
+            return 'deepseek'
+        return 'mistral'  # Default
     
     def _log_query(
         self,
@@ -320,8 +315,6 @@ class AgenteKBService:
             total_tokens=total_tokens,
             latency_ms=latency_ms
         )
-        
-        # ✅ Agregar y hacer commit con la sesión inyectada
         self.session.add(log)
         self.session.commit()
-        self.session.refresh(log)  # Opcional: obtener ID generado
+        self.session.refresh(log)

@@ -30,7 +30,7 @@ async def query_agent(
             "Usuario"
         )
         
-        # Crear servicio con la sesión inyectada
+        # Crear servicio con la sesión inyectada 
         service = AgenteKBService(session)
         
         return await service.process_query(
