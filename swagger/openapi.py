@@ -38,7 +38,8 @@ OPENAPI_TAGS = [
     {"name": "Authentication", "description": "Endpoints de autenticación"},
     {"name": "Portfolio: Agente KB", "description": "Endpoints relacionados con el agente de conocimiento base"},
     {"name": "Portfolio: Prompt Basic", "description": "Endpoints relacionados con el agente de prompt básico"},
-    {"name": "Portfolio: Translate", "description": "Endpoints relacionados con la traducción de textos"}
+    {"name": "Portfolio: Translate", "description": "Endpoints relacionados con la traducción de textos"},
+    {"name": "Portfolio: Sentiment Analysis", "description": "Endpoints relacionados con el análisis de sentimiento"}
 ]
 
 # Función para generar el esquema OpenAPI personalizado
