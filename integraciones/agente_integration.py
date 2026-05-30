@@ -572,3 +572,98 @@ class AgenteIntegration:
             }
         except Exception as e:
             raise Exception(f"Error en Gemini Audio: {str(e)}")
+
+
+    @staticmethod
+    def analyze_video_gemini(
+        video_file_path: str,
+        model: str = "gemini-2.5-flash",
+        prompt: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Analiza video usando Google Gemini"""
+        try:
+            # Validar archivo
+            if not os.path.exists(video_file_path):
+                raise FileNotFoundError(f"Archivo no encontrado: {video_file_path}")
+            
+            # Validar tamaño (máximo 20MB para Gemini)
+            file_size = os.path.getsize(video_file_path) / (1024 * 1024)
+            if file_size > 20:
+                raise ValueError(f"Video demasiado grande ({file_size:.1f}MB). Máximo 20MB")
+            
+            # Leer y codificar video
+            with open(video_file_path, 'rb') as video_file:
+                video_data = video_file.read()
+                video_base64 = base64.b64encode(video_data).decode('utf-8')
+            
+            # Construir prompt
+            if prompt:
+                prompt_text = prompt
+            else:
+                prompt_text = """
+                Analiza este video y describe:
+                1. Qué se ve en el video (escenas, personas, objetos, acciones)
+                2. El contexto o situación
+                3. Elementos importantes o destacados
+                
+                Sé descriptivo y objetivo
+                """
+            
+            payload = {
+                'contents': [{
+                    'role': 'user',
+                    'parts': [
+                        {'text': prompt_text},
+                        {
+                            'inline_data': {
+                                'mime_type': 'video/mp4',
+                                'data': video_base64
+                            }
+                        }
+                    ]
+                }],
+                'generationConfig': {
+                    'temperature': 0.2,
+                    'maxOutputTokens': 4000
+                }
+            }
+            
+            # Hacer request a Gemini
+            base_url = IAEndpoints.GEMINI_BASE.rstrip('/')
+            url = f"{base_url}/models/{model}:generateContent"
+            
+            response = requests.post(
+                url,
+                headers=IAProviders.get_gemini_headers(),
+                json=payload,
+                timeout=120  # Videos pueden tardar más
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Verificar bloqueos de seguridad
+            if 'promptFeedback' in data and 'blockReason' in data['promptFeedback']:
+                raise ValueError(f"Bloqueo de contenido: {data['promptFeedback']['blockReason']}")
+            
+            # Extraer análisis
+            if 'candidates' in data and len(data['candidates']) > 0:
+                analysis = data['candidates'][0]['content']['parts'][0]['text'].strip()
+            else:
+                raise ValueError("Gemini no devolvió un análisis válido")
+            
+            # Extraer tokens si están disponibles
+            usage = {"input": 0, "output": 0, "total": 0}
+            if "usageMetadata" in data:
+                usage = {
+                    "input": data["usageMetadata"].get("promptTokenCount", 0),
+                    "output": data["usageMetadata"].get("candidatesTokenCount", 0),
+                    "total": data["usageMetadata"].get("totalTokenCount", 0)
+                }
+            
+            return {
+                "analysis": analysis,
+                "usage": usage,
+                "duration": None  # Gemini no retorna duración del video
+            }
+        except Exception as e:
+            raise Exception(f"Error en Gemini Video: {str(e)}")

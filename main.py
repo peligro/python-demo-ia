@@ -34,6 +34,7 @@ from router.generate_sql.generate_sql_router import router as generate_sql_route
 from router.chat_history.chat_history_router import router as chat_history_router
 from router.image_recognition.image_recognition_router import router as image_recognition_router
 from router.audio_transcript.audio_transcript_router import router as audio_transcript_router
+from router.video_analysis.video_analysis_router import router as video_analysis_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -154,6 +155,7 @@ app.include_router(generate_sql_router)
 app.include_router(chat_history_router)
 app.include_router(image_recognition_router)
 app.include_router(audio_transcript_router)
+app.include_router(video_analysis_router)
 
 
 if __name__ == "__main__":
