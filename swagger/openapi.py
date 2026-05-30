@@ -45,6 +45,7 @@ OPENAPI_TAGS = [
     {"name": "Portfolio: Audio Transcript", "description": "Endpoints relacionados con la transcripción de audio"},
     {"name": "Portfolio: Video Analysis", "description": "Endpoints relacionados con el análisis de videos"},
     {"name": "Portfolio: Agente KB", "description": "Endpoints relacionados con el agente de conocimiento base"},
+    {"name": "Portfolio: Agente KB Logs", "description": "Endpoints relacionados con los logs del agente de conocimiento base"},
 ]
 
 # Función para generar el esquema OpenAPI personalizado

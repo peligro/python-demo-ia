@@ -35,6 +35,7 @@ from router.chat_history.chat_history_router import router as chat_history_route
 from router.image_recognition.image_recognition_router import router as image_recognition_router
 from router.audio_transcript.audio_transcript_router import router as audio_transcript_router
 from router.video_analysis.video_analysis_router import router as video_analysis_router
+from router.agente_kb_logs.agente_kb_logs_router import router as agente_kb_logs_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -156,6 +157,7 @@ app.include_router(image_recognition_router)
 app.include_router(audio_transcript_router)
 app.include_router(video_analysis_router)
 app.include_router(agente_kb_router)
+app.include_router(agente_kb_logs_router)
 
 
 if __name__ == "__main__":
