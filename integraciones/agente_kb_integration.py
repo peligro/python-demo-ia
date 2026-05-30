@@ -3,7 +3,8 @@ Servicio de integración con APIs de IA para el Agente KB
 Centraliza las llamadas a diferentes proveedores
 """
 import requests
-from typing import Optional, Dict, Any
+import os
+from typing import Optional, Dict, Any, List
 from .headers_ia import IAProviders, IAEndpoints
 
 
@@ -18,19 +19,29 @@ class AgenteKBIntegration:
         prompt: str,
         model: str = "mistral-small-latest",
         temperature: float = 0.3,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        messages: Optional[List[Dict[str, str]]] = None  # ✅ NUEVO: historial opcional
     ) -> Dict[str, Any]:
         """
         Consulta a Mistral AI
         Retorna: {"response": str, "usage": {"input": int, "output": int, "total": int}}
         """
         try:
-            payload = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "max_tokens": max_tokens
-            }
+            # ✅ Si viene messages, usarlo; si no, construir con prompt
+            if messages:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
+            else:
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
             
             response = requests.post(
                 IAEndpoints.get_chat_endpoint('mistral'),
@@ -57,24 +68,36 @@ class AgenteKBIntegration:
         prompt: str,
         model: str = "gemini-3.5-flash",
         temperature: float = 0.3,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        messages: Optional[List[Dict[str, str]]] = None  # ✅ NUEVO
     ) -> Dict[str, Any]:
         """
-        Consulta a Google Gemini 3.5-flash (estilo curso: API key en headers)
+        Consulta a Google Gemini 3.5-flash
         """
         try:
-            payload = {
-                "contents": [{
+            # ✅ Gemini usa contents en lugar de messages
+            if messages:
+                # Convertir formato de messages a contents
+                contents = []
+                for msg in messages:
+                    contents.append({
+                        "role": "user" if msg["role"] == "user" else "model",
+                        "parts": [{"text": msg["content"]}]
+                    })
+            else:
+                contents = [{
                     "role": "user",
                     "parts": [{"text": prompt}]
-                }],
+                }]
+            
+            payload = {
+                "contents": contents,
                 "generationConfig": {
                     "temperature": temperature,
                     "maxOutputTokens": max_tokens
                 }
             }
             
-            # ✅ URL sin API key, headers con x-goog-api-key
             base_url = IAEndpoints.GEMINI_BASE.rstrip('/')
             url = f"{base_url}/models/{model}:generateContent"
             
@@ -87,7 +110,6 @@ class AgenteKBIntegration:
             response.raise_for_status()
             data = response.json()
             
-            # ✅ Extraer tokens reales de usageMetadata si están disponibles
             usage = {"input": 0, "output": 0, "total": 0}
             if "usageMetadata" in data:
                 usage = {
@@ -107,21 +129,29 @@ class AgenteKBIntegration:
     def chat_claude(
         prompt: str,
         model: str = None,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        messages: Optional[List[Dict[str, str]]] = None  # ✅ NUEVO
     ) -> Dict[str, Any]:
         """
-        Consulta a Anthropic Claude (sin temperature para modelos nuevos)
+        Consulta a Anthropic Claude
         """
         if model is None:
             model = os.getenv('CLAUDE_MODEL', 'claude-opus-4-8')
         
         try:
-            payload = {
-                "model": model,
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}]
-                # ❌ NO incluimos temperature
-            }
+            # ✅ Si viene messages, usarlo; si no, construir con prompt
+            if messages:
+                payload = {
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": messages
+                }
+            else:
+                payload = {
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": [{"role": "user", "content": prompt}]
+                }
             
             response = requests.post(
                 IAEndpoints.get_chat_endpoint('claude'),
@@ -141,29 +171,36 @@ class AgenteKBIntegration:
                 }
             }
         except Exception as e:
-            # ✅ Imprimir detalles del error
             print(f"[Claude] Status: {e.response.status_code if hasattr(e, 'response') else 'N/A'}")
             print(f"[Claude] Response: {e.response.text if hasattr(e, 'response') else str(e)}")
             raise Exception(f"Error en Claude: {str(e)}")
-    
     
     @staticmethod
     def chat_openai(
         prompt: str,
         model: str = "gpt-4o-mini",
         temperature: float = 0.3,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        messages: Optional[List[Dict[str, str]]] = None  # ✅ NUEVO
     ) -> Dict[str, Any]:
         """
         Consulta a OpenAI
         """
         try:
-            payload = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "max_tokens": max_tokens
-            }
+            if messages:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
+            else:
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
             
             response = requests.post(
                 IAEndpoints.get_chat_endpoint('openai'),
@@ -190,18 +227,27 @@ class AgenteKBIntegration:
         prompt: str,
         model: str = "deepseek-chat",
         temperature: float = 0.3,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        messages: Optional[List[Dict[str, str]]] = None  # ✅ NUEVO
     ) -> Dict[str, Any]:
         """
         Consulta a DeepSeek
         """
         try:
-            payload = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "max_tokens": max_tokens
-            }
+            if messages:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
+            else:
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
             
             response = requests.post(
                 IAEndpoints.get_chat_endpoint('deepseek'),
@@ -228,7 +274,8 @@ class AgenteKBIntegration:
         provider: str,
         prompt: str,
         model: Optional[str] = None,
-        **kwargs  # ✅ Acepta kwargs pero no los pasa a Claude
+        messages: Optional[List[Dict[str, str]]] = None,  # ✅ NUEVO: historial opcional
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Método unificado que llama al proveedor especificado
@@ -255,50 +302,8 @@ class AgenteKBIntegration:
             }
             model = default_models.get(provider.lower(), 'mistral-small-latest')
         
-        # ✅ Para Claude, NO pasar temperature
+        # ✅ Pasar messages a todos los proveedores
         if provider.lower() == 'claude':
-            return providers[provider.lower()](prompt=prompt, model=model)
+            return providers[provider.lower()](prompt=prompt, model=model, messages=messages)
         
-        # Para otros proveedores, pasar kwargs (incluyendo temperature)
-        return providers[provider.lower()](prompt=prompt, model=model, **kwargs)
-
-
-    @staticmethod
-    def get_quota_mistral() -> Dict[str, Any]:
-        """Obtener quota de tokens disponibles en Mistral"""
-        try:
-            response = requests.get(
-                f"{IAEndpoints.MISTRAL_BASE}usage",
-                headers=IAProviders.get_mistral_headers(),
-                timeout=10
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    "available": data.get("total", 0) - data.get("used", 0),
-                    "limit": data.get("total", 0),
-                    "used": data.get("used", 0),
-                    "reset_at": data.get("reset_at", "N/A")
-                }
-        except:
-            pass
-        return {"available": None, "limit": None, "used": None}
-    
-    @staticmethod
-    def get_quota_openai() -> Dict[str, Any]:
-        """Obtener quota de tokens disponibles en OpenAI"""
-        try:
-            response = requests.get(
-                f"{IAEndpoints.OPENAI_BASE}dashboard/billing/usage",
-                headers=IAProviders.get_openai_headers(),
-                timeout=10
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    "used": data.get("total_usage", 0) / 100,  # OpenAI retorna en centavos
-                    # OpenAI no expone límite directamente
-                }
-        except:
-            pass
-        return {"available": None, "limit": None, "used": None}
+        return providers[provider.lower()](prompt=prompt, model=model, messages=messages, **kwargs)

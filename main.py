@@ -12,6 +12,9 @@ import os
 
 load_dotenv()
 
+from pydantic import BaseModel, ConfigDict
+BaseModel.model_config = ConfigDict(protected_namespaces=())
+
 # Routers
 from router.health.health_router import router as health_router
 from router.state.state_router import router as state_router
@@ -27,6 +30,7 @@ from router.prompt_basic.prompt_basic_router import router as prompt_basic_route
 from router.traduccion.traduccion_router import router as traduccion_router
 from router.analisis_sentimiento.analisis_sentimiento_router import router as analisis_sentimiento_router
 from router.generate_sql.generate_sql_router import router as generate_sql_router
+from router.chat_history.chat_history_router import router as chat_history_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -139,6 +143,7 @@ app.include_router(prompt_basic_router)
 app.include_router(traduccion_router)
 app.include_router(analisis_sentimiento_router)
 app.include_router(generate_sql_router)
+app.include_router(chat_history_router)
 
 
 if __name__ == "__main__":
