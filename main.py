@@ -26,6 +26,7 @@ from router.agente_kb.agente_kb_router import router as agente_kb_router
 from router.prompt_basic.prompt_basic_router import router as prompt_basic_router
 from router.traduccion.traduccion_router import router as traduccion_router
 from router.analisis_sentimiento.analisis_sentimiento_router import router as analisis_sentimiento_router
+from router.generate_sql.generate_sql_router import router as generate_sql_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -137,6 +138,7 @@ app.include_router(agente_kb_router)
 app.include_router(prompt_basic_router)
 app.include_router(traduccion_router)
 app.include_router(analisis_sentimiento_router)
+app.include_router(generate_sql_router)
 
 
 if __name__ == "__main__":
