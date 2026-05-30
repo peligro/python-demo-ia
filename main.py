@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
 
@@ -32,6 +33,7 @@ from router.analisis_sentimiento.analisis_sentimiento_router import router as an
 from router.generate_sql.generate_sql_router import router as generate_sql_router
 from router.chat_history.chat_history_router import router as chat_history_router
 from router.image_recognition.image_recognition_router import router as image_recognition_router
+from router.audio_transcript.audio_transcript_router import router as audio_transcript_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -54,6 +56,11 @@ app = FastAPI(
 # =============================================================================
 # MIDDLEWARES
 # =============================================================================
+# Servir archivos estáticos
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# Configurar CORS para permitir acceso desde el frontend (ajustar según sea necesario)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -146,6 +153,7 @@ app.include_router(analisis_sentimiento_router)
 app.include_router(generate_sql_router)
 app.include_router(chat_history_router)
 app.include_router(image_recognition_router)
+app.include_router(audio_transcript_router)
 
 
 if __name__ == "__main__":

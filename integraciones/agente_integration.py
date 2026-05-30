@@ -63,6 +63,7 @@ class AgenteIntegration:
         except Exception as e:
             raise Exception(f"Error en Mistral: {str(e)}")
     
+    
     @staticmethod
     def chat_gemini(
         prompt: str,
@@ -125,6 +126,7 @@ class AgenteIntegration:
         except Exception as e:
             raise Exception(f"Error en Gemini: {str(e)}")
     
+    
     @staticmethod
     def chat_claude(
         prompt: str,
@@ -175,6 +177,7 @@ class AgenteIntegration:
             print(f"[Claude] Response: {e.response.text if hasattr(e, 'response') else str(e)}")
             raise Exception(f"Error en Claude: {str(e)}")
     
+    
     @staticmethod
     def chat_openai(
         prompt: str,
@@ -221,6 +224,7 @@ class AgenteIntegration:
             }
         except Exception as e:
             raise Exception(f"Error en OpenAI: {str(e)}")
+    
     
     @staticmethod
     def chat_deepseek(
@@ -269,6 +273,7 @@ class AgenteIntegration:
         except Exception as e:
             raise Exception(f"Error en DeepSeek: {str(e)}")
     
+    
     @staticmethod
     def chat_unificado(
         provider: str,
@@ -308,6 +313,7 @@ class AgenteIntegration:
         
         return providers[provider.lower()](prompt=prompt, model=model, messages=messages, **kwargs)
 
+    
     @staticmethod
     def analyze_image_openai(
         prompt: str,
@@ -361,6 +367,7 @@ class AgenteIntegration:
             raise Exception(f"Error en OpenAI Image: {str(e)}")
 
 
+    
     @staticmethod
     def analyze_image_gemini(
         prompt: str,
@@ -420,3 +427,148 @@ class AgenteIntegration:
             }
         except Exception as e:
             raise Exception(f"Error en Gemini Image: {str(e)}")
+
+    @staticmethod
+    def transcribe_audio_openai(
+        audio_file_path: str,
+        language: Optional[str] = "es",
+        model: str = "whisper-1"
+    ) -> Dict[str, Any]:
+        """Transcribe audio usando OpenAI Whisper"""
+        try:
+            # Validar archivo
+            if not os.path.exists(audio_file_path):
+                raise FileNotFoundError(f"Archivo no encontrado: {audio_file_path}")
+            
+            # Determinar MIME type
+            ext = os.path.splitext(audio_file_path)[1].lower().lstrip('.')
+            mime_types = {
+                'mp3': 'audio/mpeg',
+                'ogg': 'audio/ogg',
+                'wav': 'audio/wav',
+                'm4a': 'audio/mp4',
+                'flac': 'audio/flac'
+            }
+            mime_type = mime_types.get(ext, 'audio/mpeg')
+            
+            # Preparar request multipart/form-data
+            with open(audio_file_path, 'rb') as audio_file:
+                files = {
+                    'file': (os.path.basename(audio_file_path), audio_file, mime_type),
+                    'model': (None, model),
+                    'response_format': (None, 'text'),
+                }
+                if language:
+                    files['language'] = (None, language)
+                
+                response = requests.post(
+                    f"{IAEndpoints.OPENAI_BASE}audio/transcriptions",
+                    headers={"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"},
+                    files=files,
+                    timeout=120  # Whisper puede tardar con archivos largos
+                )
+                response.raise_for_status()
+                
+                return {
+                    "transcription": response.text.strip(),
+                    "usage": {"input": 0, "output": 0, "total": 0},  # Whisper no retorna tokens
+                    "duration": None,  # Podríamos extraerlo con mutagen si es necesario
+                    "detected_language": language
+                }
+        except Exception as e:
+            raise Exception(f"Error en Whisper: {str(e)}")
+
+    @staticmethod
+    def transcribe_audio_gemini(
+        audio_file_path: str,
+        model: str = "gemini-2.5-flash",
+        language: Optional[str] = "es"
+    ) -> Dict[str, Any]:
+        """Transcribe audio usando Google Gemini"""
+        try:
+            # Validar archivo y tamaño (Gemini: máx 20MB)
+            if not os.path.exists(audio_file_path):
+                raise FileNotFoundError(f"Archivo no encontrado: {audio_file_path}")
+            
+            file_size = os.path.getsize(audio_file_path) / (1024 * 1024)
+            if file_size > 20:
+                raise ValueError(f"Archivo demasiado grande ({file_size:.1f}MB). Máximo 20MB para Gemini")
+            
+            # Determinar MIME type
+            ext = os.path.splitext(audio_file_path)[1].lower().lstrip('.')
+            mime_types = {
+                'mp3': 'audio/mpeg',
+                'ogg': 'audio/ogg',
+                'wav': 'audio/wav',
+                'm4a': 'audio/mp4',
+                'flac': 'audio/flac'
+            }
+            mime_type = mime_types.get(ext, 'audio/mpeg')
+            
+            # Leer y codificar audio
+            with open(audio_file_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
+                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+            
+            # Construir prompt
+            prompt = "Transcribe este audio a texto exactamente como se escucha. Devuelve solo la transcripción sin comentarios adicionales, títulos o explicaciones."
+            
+            payload = {
+                'contents': [{
+                    'role': 'user',
+                    'parts': [
+                        {'text': prompt},
+                        {
+                            'inline_data': {
+                                'mime_type': mime_type,
+                                'data': audio_base64
+                            }
+                        }
+                    ]
+                }],
+                'generationConfig': {
+                    'temperature': 0.1,
+                    'maxOutputTokens': 2000
+                }
+            }
+            
+            # Hacer request a Gemini
+            base_url = IAEndpoints.GEMINI_BASE.rstrip('/')
+            url = f"{base_url}/models/{model}:generateContent"
+            
+            response = requests.post(
+                url,
+                headers=IAProviders.get_gemini_headers(),
+                json=payload,
+                timeout=120
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Verificar bloqueos de seguridad
+            if 'promptFeedback' in data and 'blockReason' in data['promptFeedback']:
+                raise ValueError(f"Bloqueo de contenido: {data['promptFeedback']['blockReason']}")
+            
+            # Extraer transcripción
+            if 'candidates' in data and len(data['candidates']) > 0:
+                transcription = data['candidates'][0]['content']['parts'][0]['text'].strip()
+            else:
+                raise ValueError("Gemini no devolvió una transcripción válida")
+            
+            # Extraer tokens si están disponibles
+            usage = {"input": 0, "output": 0, "total": 0}
+            if "usageMetadata" in data:
+                usage = {
+                    "input": data["usageMetadata"].get("promptTokenCount", 0),
+                    "output": data["usageMetadata"].get("candidatesTokenCount", 0),
+                    "total": data["usageMetadata"].get("totalTokenCount", 0)
+                }
+            
+            return {
+                "transcription": transcription,
+                "usage": usage,
+                "duration": None,  # Gemini no retorna duración en la respuesta
+                "detected_language": language
+            }
+        except Exception as e:
+            raise Exception(f"Error en Gemini Audio: {str(e)}")
