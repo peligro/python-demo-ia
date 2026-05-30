@@ -31,6 +31,7 @@ from router.traduccion.traduccion_router import router as traduccion_router
 from router.analisis_sentimiento.analisis_sentimiento_router import router as analisis_sentimiento_router
 from router.generate_sql.generate_sql_router import router as generate_sql_router
 from router.chat_history.chat_history_router import router as chat_history_router
+from router.image_recognition.image_recognition_router import router as image_recognition_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -144,6 +145,7 @@ app.include_router(traduccion_router)
 app.include_router(analisis_sentimiento_router)
 app.include_router(generate_sql_router)
 app.include_router(chat_history_router)
+app.include_router(image_recognition_router)
 
 
 if __name__ == "__main__":

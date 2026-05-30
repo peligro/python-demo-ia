@@ -2,7 +2,7 @@ import time
 import re
 from typing import Optional, Literal
 from sqlmodel import Session
-from integraciones.agente_kb_integration import AgenteKBIntegration
+from integraciones.agente_integration import AgenteIntegration
 from schemas.generate_sql import GenerateSQLRequest, GenerateSQLResponse
 
 class GenerateSQLService:
@@ -37,7 +37,7 @@ class GenerateSQLService:
         
         try:
             # Llamar a la IA
-            result = AgenteKBIntegration.chat_unificado(
+            result = AgenteIntegration.chat_unificado(
                 provider=provider,
                 prompt=prompt,
                 model=request.model

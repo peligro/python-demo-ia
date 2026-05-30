@@ -1,7 +1,7 @@
 import time
 import os
 from sqlmodel import Session
-from integraciones.agente_kb_integration import AgenteKBIntegration
+from integraciones.agente_integration import AgenteIntegration
 from schemas.prompt_basic import PromptBasicRequest, PromptBasicResponse, MetricsSchema
 
 class PromptBasicService:
@@ -22,7 +22,7 @@ class PromptBasicService:
 
         try:
             # Llamada directa a la IA usando la integración existente
-            result = AgenteKBIntegration.chat_unificado(
+            result = AgenteIntegration.chat_unificado(
                 provider=provider,
                 prompt=request.input,
                 model=request.model

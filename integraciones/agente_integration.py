@@ -4,14 +4,14 @@ Centraliza las llamadas a diferentes proveedores
 """
 import requests
 import os
+import base64
 from typing import Optional, Dict, Any, List
 from .headers_ia import IAProviders, IAEndpoints
 
 
-class AgenteKBIntegration:
+class AgenteIntegration:
     """
     Cliente unificado para llamar a diferentes proveedores de IA
-    desde el Agente KB
     """
     
     @staticmethod
@@ -281,11 +281,11 @@ class AgenteKBIntegration:
         Método unificado que llama al proveedor especificado
         """
         providers = {
-            'mistral': AgenteKBIntegration.chat_mistral,
-            'gemini': AgenteKBIntegration.chat_gemini,
-            'claude': AgenteKBIntegration.chat_claude,
-            'openai': AgenteKBIntegration.chat_openai,
-            'deepseek': AgenteKBIntegration.chat_deepseek,
+            'mistral': AgenteIntegration.chat_mistral,
+            'gemini': AgenteIntegration.chat_gemini,
+            'claude': AgenteIntegration.chat_claude,
+            'openai': AgenteIntegration.chat_openai,
+            'deepseek': AgenteIntegration.chat_deepseek,
         }
         
         if provider.lower() not in providers:
@@ -307,3 +307,116 @@ class AgenteKBIntegration:
             return providers[provider.lower()](prompt=prompt, model=model, messages=messages)
         
         return providers[provider.lower()](prompt=prompt, model=model, messages=messages, **kwargs)
+
+    @staticmethod
+    def analyze_image_openai(
+        prompt: str,
+        image_url: str,
+        model: str = "gpt-4o",
+        max_tokens: int = 500
+    ) -> Dict[str, Any]:
+        """Analiza imagen con OpenAI GPT-4o"""
+        try:
+            # Descargar y codificar imagen
+            response_imagen = requests.get(image_url, timeout=10)
+            response_imagen.raise_for_status()
+            imagen_base64 = base64.b64encode(response_imagen.content).decode('utf-8')
+            content_type = response_imagen.headers.get('content-type', 'image/jpeg')
+            
+            payload = {
+                "model": model,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{content_type};base64,{imagen_base64}"
+                            }
+                        }
+                    ]
+                }],
+                "max_tokens": max_tokens
+            }
+            
+            response = requests.post(
+                IAEndpoints.get_chat_endpoint('openai'),
+                headers=IAProviders.get_openai_headers(),
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "response": data["choices"][0]["message"]["content"],
+                "usage": {
+                    "input": data["usage"]["prompt_tokens"],
+                    "output": data["usage"]["completion_tokens"],
+                    "total": data["usage"]["total_tokens"]
+                }
+            }
+        except Exception as e:
+            raise Exception(f"Error en OpenAI Image: {str(e)}")
+
+
+    @staticmethod
+    def analyze_image_gemini(
+        prompt: str,
+        image_url: str,
+        model: str = "gemini-2.5-flash",
+        max_tokens: int = 500
+    ) -> Dict[str, Any]:
+        """Analiza imagen con Google Gemini"""
+        try:
+            # Descargar y codificar imagen
+            response_imagen = requests.get(image_url, timeout=10)
+            response_imagen.raise_for_status()
+            imagen_base64 = base64.b64encode(response_imagen.content).decode('utf-8')
+            content_type = response_imagen.headers.get('content-type', 'image/jpeg')
+            
+            payload = {
+                "contents": [{
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": content_type,
+                                "data": imagen_base64
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens
+                }
+            }
+            
+            base_url = IAEndpoints.GEMINI_BASE.rstrip('/')
+            url = f"{base_url}/models/{model}:generateContent"
+            
+            response = requests.post(
+                url,
+                headers=IAProviders.get_gemini_headers(),
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            usage = {"input": 0, "output": 0, "total": 0}
+            if "usageMetadata" in data:
+                usage = {
+                    "input": data["usageMetadata"].get("promptTokenCount", 0),
+                    "output": data["usageMetadata"].get("candidatesTokenCount", 0),
+                    "total": data["usageMetadata"].get("totalTokenCount", 0)
+                }
+            
+            return {
+                "response": data["candidates"][0]["content"]["parts"][0]["text"],
+                "usage": usage
+            }
+        except Exception as e:
+            raise Exception(f"Error en Gemini Image: {str(e)}")

@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from models.kb_entry import KBEntry
 from models.query_log import QueryLog
 from schemas.agente_kb import QueryResponse, MetricsSchema
-from integraciones.agente_kb_integration import AgenteKBIntegration
+from integraciones.agente_integration import AgenteIntegration
 
 
 class AgenteKBService:
@@ -254,7 +254,7 @@ class AgenteKBService:
         """
         try:
             provider = self._get_provider_from_model(model)
-            result = AgenteKBIntegration.chat_unificado(
+            result = AgenteIntegration.chat_unificado(
                 provider=provider,
                 prompt=prompt,
                 model=model

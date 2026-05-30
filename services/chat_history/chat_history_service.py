@@ -1,7 +1,7 @@
 import time
 from typing import Optional, List
 from sqlmodel import Session
-from integraciones.agente_kb_integration import AgenteKBIntegration
+from integraciones.agente_integration import AgenteIntegration
 from schemas.chat_history import ChatHistoryRequest, ChatHistoryResponse, Message
 
 class ChatHistoryService:
@@ -22,7 +22,7 @@ class ChatHistoryService:
         
         try:
             # Llamar a la IA con historial completo
-            result = AgenteKBIntegration.chat_unificado(
+            result = AgenteIntegration.chat_unificado(
                 provider=provider,
                 prompt="",  # No usamos prompt base, el historial ya lo contiene
                 model=request.model,

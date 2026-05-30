@@ -2,7 +2,7 @@ import time
 import re
 from typing import Optional
 from sqlmodel import Session
-from integraciones.agente_kb_integration import AgenteKBIntegration
+from integraciones.agente_integration import AgenteIntegration
 from schemas.analisis_sentimiento import (
     SentimentAnalysisRequest, 
     SentimentAnalysisResponse
@@ -26,7 +26,7 @@ class AnalisisSentimientoService:
         
         try:
             # Llamar a la IA
-            result = AgenteKBIntegration.chat_unificado(
+            result = AgenteIntegration.chat_unificado(
                 provider=provider,
                 prompt=prompt,
                 model=request.model
