@@ -36,7 +36,8 @@ OPENAPI_TAGS = [
     {"name": "App Menu", "description": "Listar menús de la aplicación"},
     {"name": "Home Menu", "description": "Listar menús del home"},
     {"name": "Authentication", "description": "Endpoints de autenticación"},
-    {"name": "Portfolio: Agente KB", "description": "Endpoints relacionados con el agente de conocimiento base"}
+    {"name": "Portfolio: Agente KB", "description": "Endpoints relacionados con el agente de conocimiento base"},
+    {"name": "Portfolio: Prompt Basic", "description": "Endpoints relacionados con el agente de prompt básico"},
 ]
 
 # Función para generar el esquema OpenAPI personalizado
