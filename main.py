@@ -147,7 +147,6 @@ app.include_router(user_router)
 app.include_router(app_menu_router)
 app.include_router(auth_router)
 app.include_router(home_menu_router)
-app.include_router(agente_kb_router)
 app.include_router(prompt_basic_router)
 app.include_router(traduccion_router)
 app.include_router(analisis_sentimiento_router)
@@ -156,6 +155,7 @@ app.include_router(chat_history_router)
 app.include_router(image_recognition_router)
 app.include_router(audio_transcript_router)
 app.include_router(video_analysis_router)
+app.include_router(agente_kb_router)
 
 
 if __name__ == "__main__":

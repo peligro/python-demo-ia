@@ -17,7 +17,7 @@ async def query_agent(
     Endpoint principal del agente de conocimiento base.
     
     - Si hay match en KB: respuesta inmediata, costo $0
-    - Si no: fallback a IA con contexto, costo controlado
+    - Si no: fallback a IA con contexto (historial opcional), costo controlado
     - Registra métricas en query_logs para auditoría
     """
     try:
@@ -38,7 +38,8 @@ async def query_agent(
             chat_id=body.chatId,
             user_id=user_id,
             user_name=user_name,
-            model=body.model or "mistral-small-latest"
+            model=body.model or "mistral-small-latest",
+            messages=body.messages  # ← Pasar historial si viene
         )
         
     except Exception as e:
