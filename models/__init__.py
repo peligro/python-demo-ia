@@ -10,7 +10,9 @@ from models.app_menu import AppMenu
 from models.home_menu import HomeMenu
 from models.kb_entry import KBEntry
 from models.query_log import QueryLog
+from models.rag_chunk import RAGChunk
+from models.rag_job import RAGJob, JobStatus
 
 
 # Opcional: exportarlos para uso externo
-__all__ = ["State", "Profile", "Module", "Item", "ProfileModule", "ProfileModuleItem", "User", "UserMetadata", "AppMenu", "HomeMenu", "KBEntry", "QueryLog"]
+__all__ = ["State", "Profile", "Module", "Item", "ProfileModule", "ProfileModuleItem", "User", "UserMetadata", "AppMenu", "HomeMenu", "KBEntry", "QueryLog", "RAGChunk", "RAGJob", "JobStatus"]

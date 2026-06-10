@@ -1,7 +1,9 @@
+#api/common/common.py
 from datetime import datetime, timedelta
 import bcrypt
 from typing import Optional
 from fastapi import status, HTTPException
+from fastapi.responses import JSONResponse
 
 
 import os
@@ -39,3 +41,20 @@ def send_mail(html: str, asunto: str, para: str):
     server.quit()
 
 
+def format_error_response(message: str = "Ocurrió un error inesperado", detail: str = None, status_code: int = 500):
+    """
+    Formatea respuesta de error según ENVIRONMENT.
+    El campo 'detalle' solo se incluye en local/staging.
+    """
+    env = os.getenv("ENVIRONMENT", "production")
+    
+    response = {
+        "estado": "error",
+        "mensaje": message
+    }
+    
+    # Solo incluir detalle en entornos no productivos
+    if env in ["local", "staging"] and detail:
+        response["detalle"] = detail
+    
+    return JSONResponse(status_code=status_code, content=response)
