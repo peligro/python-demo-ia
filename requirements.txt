@@ -43,4 +43,4 @@ slowapi>=0.1.9
 sentence-transformers==2.7.0  # ✅ Para embeddings y re-ranking
 PyPDF2==3.0.1                  # ✅ Para procesar PDFs
 pandas==2.2.2                  # ✅ Para análisis de datos (opcional pero útil)
-requests==2.31.0
+requests==2.33.0
