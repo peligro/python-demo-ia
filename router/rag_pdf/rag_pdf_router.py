@@ -10,9 +10,10 @@ from middleware.auth import get_current_user
 from models.rag_job import RAGJob, JobStatus
 from models.rag_chunk import RAGChunk
 from services.rag_pdf.s3_service import S3Service
-from services.rag_pdf.rag_engine import RAGEngine
+from services.rag_pdf.rag_pdf_service import RAGPDFService  # ← Nuevo servicio
 from services.rag_pdf.rag_cache_service import RAGCacheService
 from services.queue.queue_service import QueueService
+from schemas.rag_pdf import RAGQueryRequest, RAGQueryResponse  # ← Nuevo schema
 from botocore.exceptions import ClientError
 
 import os
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/rag-pdf", tags=["Portfolio: RAG PDF"])
 @router.post("/upload")
 async def upload_pdf(
     file: UploadFile = File(...),
-    queue_provider: str = Query(default="redis", pattern="^(redis|sqs)$"),  # ← pattern en vez de regex
+    queue_provider: str = Query(default="redis", pattern="^(redis|sqs)$"),
     session: Session = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -279,33 +280,47 @@ async def get_job_status(
 # 4. OTRAS RUTAS
 # =============================================================================
 
-@router.post("/query")
+@router.post("/query", response_model=RAGQueryResponse)
 async def rag_query(
-    query: str,
+    body: RAGQueryRequest,  # ← Ahora es body, no query param
     session: Session = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    if not query or len(query.strip()) < 5:
-        raise HTTPException(status_code=400, detail="Consulta muy corta (mín 5 caracteres)")
-    
+    """
+    Consulta al agente RAG PDF.
+    Flujo:
+    1. Cache Redis (si existe)
+    2. Búsqueda vectorial en KB
+    3. Si similitud > threshold → respuesta directa KB (costo $0)
+    4. Si no → fallback a IA con contexto (costo tokens)
+    """
+    # 1. Verificar cache primero
     cache = RAGCacheService()
-    cached_response = cache.get(query)
+    cached_response = cache.get(body.query)
     
     if cached_response:
         cached_response["cache"] = True
-        return cached_response
+        return RAGQueryResponse(**cached_response)
     
-    engine = RAGEngine()
-    result = engine.process_query(query, session)
-    cache.set(query, result)
+    # 2. Procesar con el nuevo servicio
+    service = RAGPDFService(session)
+    result = await service.process_query(
+        query=body.query,
+        model=body.model,
+        kb_threshold=body.kb_threshold,
+        top_k=body.top_k
+    )
     
-    return result
+    # 3. Guardar en cache
+    cache.set(body.query, result)
+    
+    return RAGQueryResponse(**result)
 
 
 @router.get("/chunks")
 async def list_chunks(
-    section: str = Query(None),
-    search: str = Query(None),
+    section: str = Query(None, description="Filtrar por sección"),
+    search: str = Query(None, description="Buscar en question/answer"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
