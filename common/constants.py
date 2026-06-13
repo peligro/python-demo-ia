@@ -1,3 +1,4 @@
+#common/constants.py
 VIEW_ALL_REGISTER = "view_all_register"
 ADMIN_OVERRIDE = "admin_override"
 MANAGE_STATES = "manage_states"

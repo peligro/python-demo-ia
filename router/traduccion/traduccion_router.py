@@ -1,3 +1,4 @@
+#router/traduccion/traduccion_router.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 from database.database import get_session

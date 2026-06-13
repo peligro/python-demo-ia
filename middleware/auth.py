@@ -1,3 +1,4 @@
+#middleware/auth.py
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from common.redis_client import redis_client

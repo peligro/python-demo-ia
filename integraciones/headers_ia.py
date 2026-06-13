@@ -1,3 +1,4 @@
+#integration/headers_ia.py
 """
 Configuración de headers y URLs para diferentes proveedores de IA
 Basado en: https://integracion-de-apis-de-ia-de-cero-a-experto.cesarcancino.com/

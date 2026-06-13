@@ -1,3 +1,4 @@
+#integration/agente_integration.py
 """
 Servicio de integración con APIs de IA para el Agente KB
 Centraliza las llamadas a diferentes proveedores

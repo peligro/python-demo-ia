@@ -1,3 +1,4 @@
+#services/item/item_service.py
 from sqlmodel import Session, select, and_
 from models.item import Item
 from schemas.item import ItemCreate, ItemUpdate

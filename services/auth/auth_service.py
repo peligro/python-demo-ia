@@ -1,3 +1,4 @@
+#services/auth/auth_service.py
 from sqlmodel import Session, select
 from models.user import User
 from models.user_metadata import UserMetadata

@@ -1,3 +1,4 @@
+#services/module/module_service.py
 from sqlmodel import Session, select, and_
 from models.module import Module
 from schemas.module import ModuleCreate, ModuleUpdate

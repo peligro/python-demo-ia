@@ -1,3 +1,4 @@
+#services/traduccion/traduccion_service.py
 import time
 import uuid
 from typing import Optional

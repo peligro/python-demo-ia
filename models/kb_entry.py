@@ -1,3 +1,4 @@
+#models/kb_entry.py
 from typing import Optional, List
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Column, Index
