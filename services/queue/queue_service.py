@@ -1,6 +1,5 @@
-# api/services/queue/queue_service.py
 """
-Servicio de colas para API - Soporte multi-proveedor (Redis/SQS).
+Servicio de colas para API - Soporte multi-proveedor (Redis/SQS/Kafka).
 Totalmente independiente del worker.
 """
 import os
@@ -15,6 +14,8 @@ import redis
 # SQS
 import boto3
 from botocore.exceptions import ClientError
+# Kafka
+from confluent_kafka import Producer, KafkaError
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,6 @@ class SQSQueueService:
     """Proveedor AWS SQS"""
     
     def __init__(self):
-        from api.aws.aws import get_conection  # Tu conexión existente
-        # Reutilizamos la lógica de conexión de tu aws.py
         if os.getenv('ENVIRONMENT') == 'local':
             self.sqs = boto3.client(
                 "sqs",
@@ -102,12 +101,88 @@ class SQSQueueService:
             raise
 
 
+class KafkaQueueService:
+    """Proveedor Apache Kafka"""
+    
+    def __init__(self):
+        self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+        self.topic = os.getenv("KAFKA_TOPIC_JOBS", "rag-pdf-jobs")
+        
+        # Configuración del producer
+        self.producer = Producer({
+            'bootstrap.servers': self.bootstrap_servers,
+            'client.id': 'rag-pdf-api',
+            'acks': 'all',  # Espera confirmación de todos los replicas
+            'retries': 5,
+            'retry.backoff.ms': 500,
+            'linger.ms': 5,  # Espera 5ms para agrupar mensajes
+            'batch.num.messages': 100,
+        })
+        
+        logger.info(f"✅ [KAFKA] Producer inicializado: {self.bootstrap_servers}")
+    
+    def delivery_report(self, err, msg):
+        """Callback llamado cuando el mensaje es entregado (o falla)"""
+        if err is not None:
+            logger.error(f"❌ [KAFKA] Error entregando mensaje: {err}")
+        else:
+            logger.debug(
+                f"✅ [KAFKA] Mensaje entregado a {msg.topic()} "
+                f"partición [{msg.partition()}] @ offset {msg.offset()}"
+            )
+    
+    def enqueue(self, payload: Dict[str, Any]) -> str:
+        try:
+            # Generar key para particionado consistente (opcional)
+            key = str(payload.get("job_id", ""))
+            
+            # Serializar payload
+            value = json.dumps(payload, default=str).encode('utf-8')
+            
+            # Enviar mensaje asíncrono
+            self.producer.produce(
+                topic=self.topic,
+                key=key.encode('utf-8') if key else None,
+                value=value,
+                callback=self.delivery_report,
+                headers=[
+                    ('source', b'rag-pdf-upload'),
+                    ('timestamp', datetime.utcnow().isoformat().encode('utf-8'))
+                ]
+            )
+            
+            # Flush para asegurar entrega (timeout 5s)
+            self.producer.flush(timeout=5.0)
+            
+            # Generar ID único para el mensaje
+            message_id = f"kafka:{datetime.utcnow().timestamp()}-{payload.get('job_id')}"
+            
+            logger.info(
+                f"📤 [KAFKA] Mensaje encolado en {self.topic}: "
+                f"job_id={payload.get('job_id')}"
+            )
+            return message_id
+            
+        except KafkaError as e:
+            logger.error(f"❌ [KAFKA] Error encolando: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ [KAFKA] Error inesperado: {e}")
+            raise
+    
+    def __del__(self):
+        """Cleanup al destruir el producer"""
+        if hasattr(self, 'producer'):
+            self.producer.flush(timeout=5.0)
+
+
 class QueueServiceFactory:
     """Factory para instanciar el proveedor correcto"""
     
     _providers = {
         "redis": RedisQueueService,
         "sqs": SQSQueueService,
+        "kafka": KafkaQueueService,  # ← NUEVO
     }
     
     @classmethod
@@ -116,7 +191,7 @@ class QueueServiceFactory:
         Obtiene una instancia del proveedor de cola.
         
         Args:
-            provider_name: "redis" (default) o "sqs"
+            provider_name: "redis" (default), "sqs" o "kafka"
         
         Returns:
             Instancia de QueueProvider

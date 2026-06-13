@@ -6,19 +6,22 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 from database.database import get_session
 from middleware.auth import get_current_user
+import logging
 
 from models.rag_job import RAGJob, JobStatus
 from models.rag_chunk import RAGChunk
 from services.rag_pdf.s3_service import S3Service
-from services.rag_pdf.rag_pdf_service import RAGPDFService  # ← Nuevo servicio
+from services.rag_pdf.rag_pdf_service import RAGPDFService
 from services.rag_pdf.rag_cache_service import RAGCacheService
 from services.queue.queue_service import QueueService
-from schemas.rag_pdf import RAGQueryRequest, RAGQueryResponse  # ← Nuevo schema
+from schemas.rag_pdf import RAGQueryRequest, RAGQueryResponse
 from botocore.exceptions import ClientError
+from aws.aws import get_aws_client  # ← Importar la función genérica
 
 import os
 import redis
-import boto3
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag-pdf", tags=["Portfolio: RAG PDF"])
 
@@ -30,7 +33,7 @@ router = APIRouter(prefix="/rag-pdf", tags=["Portfolio: RAG PDF"])
 @router.post("/upload")
 async def upload_pdf(
     file: UploadFile = File(...),
-    queue_provider: str = Query(default="redis", pattern="^(redis|sqs)$"),
+    queue_provider: str = Query(default="redis", pattern="^(redis|sqs|kafka)$"),
     session: Session = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -123,8 +126,10 @@ async def list_jobs(
 
 @router.get("/queue-providers")
 async def list_queue_providers():
+    """Lista los proveedores de cola disponibles y su estado"""
     providers = []
     
+    # Verificar Redis
     try:
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "redis"),
@@ -133,29 +138,58 @@ async def list_queue_providers():
             socket_timeout=2
         )
         r.ping()
-        providers.append({"name": "redis", "status": "available", "stream": os.getenv("REDIS_STREAM", "rag-jobs")})
-    except:
+        providers.append({
+            "name": "redis", 
+            "status": "available", 
+            "stream": os.getenv("REDIS_STREAM", "rag-jobs")
+        })
+    except Exception as e:
+        logger.warning(f"Redis no disponible: {e}")
         providers.append({"name": "redis", "status": "unavailable"})
     
+    # ✅ Verificar SQS usando get_aws_client
     try:
-        if os.getenv('ENVIRONMENT') == 'local':
-            sqs = boto3.client("sqs", region_name=os.getenv('AWS_REGION'), 
-                             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-                             endpoint_url=os.getenv('AWS_SECRET_ACCESS_URL'))
-        else:
-            sqs = boto3.client("sqs", region_name=os.getenv('AWS_REGION'),
-                             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
-        
+        sqs = get_aws_client("sqs")  # ← Reutilizar función genérica
         queue_url = os.getenv("SQS_QUEUE_URL")
+        
         if queue_url:
             sqs.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["QueueArn"])
-            providers.append({"name": "sqs", "status": "available", "queue_url": queue_url})
+            providers.append({
+                "name": "sqs", 
+                "status": "available", 
+                "queue_url": queue_url
+            })
         else:
             providers.append({"name": "sqs", "status": "unconfigured"})
-    except:
+    except Exception as e:
+        logger.warning(f"SQS no disponible: {e}")
         providers.append({"name": "sqs", "status": "unavailable"})
+    
+    # ✅ Verificar Kafka
+    try:
+        from confluent_kafka import Producer
+        kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+        
+        test_producer = Producer({
+            'bootstrap.servers': kafka_bootstrap,
+            'client.id': 'health-check',
+            'socket.timeout.ms': 2000,
+        })
+        
+        metadata = test_producer.list_topics(timeout=3)
+        
+        if metadata:
+            providers.append({
+                "name": "kafka",
+                "status": "available",
+                "bootstrap_servers": kafka_bootstrap,
+                "topic": os.getenv("KAFKA_TOPIC_JOBS", "rag-pdf-jobs")
+            })
+        else:
+            providers.append({"name": "kafka", "status": "unavailable"})
+    except Exception as e:
+        logger.warning(f"Kafka no disponible: {e}")
+        providers.append({"name": "kafka", "status": "unavailable"})
     
     return {"providers": providers, "default": "redis"}
 
@@ -282,7 +316,7 @@ async def get_job_status(
 
 @router.post("/query", response_model=RAGQueryResponse)
 async def rag_query(
-    body: RAGQueryRequest,  # ← Ahora es body, no query param
+    body: RAGQueryRequest,
     session: Session = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -294,7 +328,6 @@ async def rag_query(
     3. Si similitud > threshold → respuesta directa KB (costo $0)
     4. Si no → fallback a IA con contexto (costo tokens)
     """
-    # 1. Verificar cache primero
     cache = RAGCacheService()
     cached_response = cache.get(body.query)
     
@@ -302,7 +335,6 @@ async def rag_query(
         cached_response["cache"] = True
         return RAGQueryResponse(**cached_response)
     
-    # 2. Procesar con el nuevo servicio
     service = RAGPDFService(session)
     result = await service.process_query(
         query=body.query,
@@ -311,7 +343,6 @@ async def rag_query(
         top_k=body.top_k
     )
     
-    # 3. Guardar en cache
     cache.set(body.query, result)
     
     return RAGQueryResponse(**result)
