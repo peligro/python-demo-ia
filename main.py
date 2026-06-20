@@ -38,6 +38,7 @@ from router.audio_transcript.audio_transcript_router import router as audio_tran
 from router.video_analysis.video_analysis_router import router as video_analysis_router
 from router.agente_kb_logs.agente_kb_logs_router import router as agente_kb_logs_router
 from router.rag_pdf.rag_pdf_router import router as rag_pdf_router
+from router.face_detection.face_detection_router import router as face_detection_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -162,6 +163,7 @@ app.include_router(video_analysis_router)
 app.include_router(agente_kb_router)
 app.include_router(agente_kb_logs_router)
 app.include_router(rag_pdf_router)
+app.include_router(face_detection_router)
 
 
 if __name__ == "__main__":

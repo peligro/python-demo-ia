@@ -1,3 +1,4 @@
+#requirements.txt
 # FastAPI y servidor
 fastapi>=0.115.12
 fastapi-cli==0.0.7
@@ -43,7 +44,12 @@ slowapi>=0.1.9
 sentence-transformers==2.7.0
 PyPDF2>=3.0.1
 pandas==2.2.2
-requests>=2.33.0  # ✅ Actualizado para corregir CVE-2024-35195, CVE-2024-47081, CVE-2026-25645
+requests>=2.33.0
 
+# ===== kafka =====
+confluent-kafka>=2.6.0
 
-confluent-kafka>=2.6.0  # ✅ Librería oficial de Confluent (más performante)
+# ===== Computer Vision =====
+opencv-python>=4.10.0.84
+Pillow>=10.4.0
+numpy>=1.26.4

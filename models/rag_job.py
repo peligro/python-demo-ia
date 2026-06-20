@@ -1,4 +1,4 @@
-# api/models/rag_job.py
+# models/rag_job.py
 from typing import Optional
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Column

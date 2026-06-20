@@ -1,3 +1,4 @@
+#services/queue/queue_service.py
 """
 Servicio de colas para API - Soporte multi-proveedor (Redis/SQS/Kafka).
 Totalmente independiente del worker.

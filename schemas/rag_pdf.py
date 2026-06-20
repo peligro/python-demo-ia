@@ -1,4 +1,4 @@
-# api/schemas/rag_pdf.py
+#schemas/rag_pdf.py
 from pydantic import BaseModel, Field
 from typing import Optional, List
 

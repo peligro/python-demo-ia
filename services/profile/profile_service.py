@@ -1,4 +1,4 @@
-#services/profile_service/profile_service.py
+#services/profile/profile_service.py
 from sqlmodel import Session, select, and_, func
 from sqlalchemy import desc
 from models.profile import Profile

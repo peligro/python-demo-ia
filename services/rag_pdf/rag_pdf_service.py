@@ -1,4 +1,4 @@
-# api/services/rag_pdf/rag_pdf_service.py
+#services/rag_pdf/rag_pdf_service.py
 import os
 import time
 import logging

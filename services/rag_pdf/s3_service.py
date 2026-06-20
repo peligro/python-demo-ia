@@ -1,4 +1,4 @@
-# api/services/rag_pdf/s3_service.py
+# services/rag_pdf/s3_service.py
 import os
 import uuid
 import logging

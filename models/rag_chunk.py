@@ -1,4 +1,4 @@
-# python/models/rag_chunk.py
+# models/rag_chunk.py
 from typing import Optional, List
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Column
