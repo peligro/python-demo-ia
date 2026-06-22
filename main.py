@@ -39,6 +39,7 @@ from router.video_analysis.video_analysis_router import router as video_analysis
 from router.agente_kb_logs.agente_kb_logs_router import router as agente_kb_logs_router
 from router.rag_pdf.rag_pdf_router import router as rag_pdf_router
 from router.face_detection.face_detection_router import router as face_detection_router
+from router.ocr.ocr_router import router as ocr_router
 
 
 # Middlewares (sin API Key - usamos cookies HttpOnly)
@@ -164,6 +165,7 @@ app.include_router(agente_kb_router)
 app.include_router(agente_kb_logs_router)
 app.include_router(rag_pdf_router)
 app.include_router(face_detection_router)
+app.include_router(ocr_router)
 
 
 if __name__ == "__main__":
