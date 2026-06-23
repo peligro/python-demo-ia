@@ -53,3 +53,9 @@ confluent-kafka>=2.6.0
 opencv-python>=4.10.0.84
 Pillow>=10.4.0
 numpy>=1.26.4
+pytesseract>=0.3.10
+pdfplumber>=0.11.0
+pdf2image>=1.17.0
+
+# ===== Object Detection (YOLOv8) =====
+ultralytics>=8.1.0

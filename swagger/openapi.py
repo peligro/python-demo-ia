@@ -50,6 +50,7 @@ OPENAPI_TAGS = [
     {"name": "Portfolio: RAG PDF", "description": "Endpoints relacionados con el agente RAG para PDFs"},
     {"name": "Portfolio: Face Detection", "description": "Endpoints relacionados con detección de caras y ojos usando OpenCV y MediaPipe"},
     {"name": "Portfolio: OCR", "description": "Endpoints relacionados con OCR (Optical Character Recognition) usando Tesseract"},
+    {"name": "Portfolio: Object Detection", "description": "Endpoints relacionados con detección de objetos usando YOLOv8"},
 ]
 
 # Función para generar el esquema OpenAPI personalizado
