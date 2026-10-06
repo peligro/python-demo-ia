@@ -41,7 +41,7 @@ pip_audit==2.10.0
 slowapi>=0.1.9
 
 # ===== RAG + Embeddings =====
-sentence-transformers==2.7.0
+sentence-transformers==5.6.0
 PyPDF2>=3.0.1
 pandas==2.2.2
 requests>=2.33.0
